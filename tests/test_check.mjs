@@ -226,3 +226,26 @@ test('制作記録に作詞・作曲の担当が入る', () => {
   const txt = RC.productionRecord({ ...good, authorship: { lyrics: 'human', music: 'ai' } }, null, '2026-11-11');
   assert.ok(txt.includes('作詞: 人') && txt.includes('作曲: AI 自律生成'));
 });
+
+test('NexTone は選んだときだけ確かめる', () => {
+  assert.ok(!plat(RC.check(rules, good), 'nextone'));
+});
+
+test('NexTone: AIを使った作品 → 扱いが公表されていないので問い合わせ(確認)・保証の備えあり', () => {
+  const rep = RC.check(rules, { ...good, platforms: ['nextone'], authorship: { lyrics: 'human', music: 'ai' } });
+  assert.equal(item(rep, 'nextone.ai_policy').result, 'ng');
+  assert.equal(item(rep, 'nextone.ai_policy').level, 'info');
+  assert.equal(item(rep, 'nextone.guarantee').result, 'ok');
+  assert.equal(plat(rep, 'nextone').verdict, 'ok');
+});
+
+test('NexTone: AIを使い自分がしたことが未記入 → 第7条の保証の備えが無い(危ない)', () => {
+  const rep = RC.check(rules, { ...good, human_work: [], platforms: ['nextone'], authorship: { lyrics: 'human', music: 'human' } });
+  assert.equal(item(rep, 'nextone.guarantee').result, 'ng');
+  assert.equal(plat(rep, 'nextone').verdict, 'warn');
+});
+
+test('NexTone: AIを使っていなければ問い合わせは要らない', () => {
+  const rep = RC.check(rules, { ...good, ai: {}, human_work: [], platforms: ['nextone'], authorship: { lyrics: 'human', music: 'human' } });
+  assert.equal(item(rep, 'nextone.ai_policy').result, 'ok');
+});
