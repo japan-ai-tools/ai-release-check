@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "updated": "2026-11-11",
   "note": "配信先の公式の案内から読み取った決まりだけを載せる。公式で確かめられなかった項目は status=unverified とし、チェックでは「未確認」と表示する。法律の助言ではない。最終判断は各配信先の案内で。",
   "levels": {
@@ -27,6 +27,10 @@
     "distrokid": {
       "name": "DistroKid",
       "kind": "distributor"
+    },
+    "jasrac": {
+      "name": "JASRAC(作品届)",
+      "kind": "rights"
     }
   },
   "rules": [
@@ -410,6 +414,58 @@
       "section": "5.1 / 5.3",
       "checked": "2026-11-11",
       "basis": "Spotify の案内は曲名に参加者を書いた例を誤りとしている。配信会社によっては自動で曲名に付けるため、入力の欄で分けるという読み方"
+    },
+    {
+      "id": "jasrac.ai.autonomous",
+      "platform": "jasrac",
+      "field": "authorship",
+      "level": "block",
+      "status": "verified",
+      "check": "authorship_autonomous",
+      "rule": "シンプルな指示でAIが自律的に作った歌詞・曲は、人の創作的な寄与が無いので著作物ではなく、JASRAC は管理しない",
+      "fix": "作詞か作曲の少なくとも一方を自分で作る。両方がAIの自律生成なら JASRAC には届けない(配信は各配信先の決まりで)",
+      "source": "https://www.jasrac.or.jp/aboutus/ai/pdf/ai-guideline.pdf",
+      "section": "AI を利用した作品の取り扱い(ガイドライン)本文の冒頭(2023-08-10・2026-03-30 更新)",
+      "checked": "2026-11-11"
+    },
+    {
+      "id": "jasrac.ai.partial",
+      "platform": "jasrac",
+      "field": "authorship",
+      "level": "info",
+      "status": "verified",
+      "check": "authorship_partial",
+      "params": {
+        "lyrics_ai": {
+          "music_only": 100,
+          "both": 50,
+          "lyrics_only": 0
+        },
+        "music_ai": {
+          "music_only": 0,
+          "both": 50,
+          "lyrics_only": 100
+        }
+      },
+      "rule": "歌詞か曲の一方がAIの自律生成なら、一方がパブリックドメインの作品と同じ扱い。作品届には「作詞(又は作曲):AI 自律生成」と分かるように書く",
+      "fix": "作品届の AI の側に「AI 自律生成」と書く。人が作った側だけが管理され、詞と曲を一緒に使われたときの管理率は50%",
+      "source": "https://www.jasrac.or.jp/aboutus/ai/pdf/ai-guideline.pdf",
+      "section": "2 歌詞又は楽曲の一方が AI 自律生成である作品(表)",
+      "checked": "2026-11-11"
+    },
+    {
+      "id": "jasrac.ai.guarantee",
+      "platform": "jasrac",
+      "field": "record",
+      "level": "warn",
+      "status": "verified",
+      "check": "human_contribution_record",
+      "rule": "届け出る人は、人が創作的に寄与した著作物であることを保証する(管理委託契約約款 第9条)。届出に疑義があれば資料の提出を求められ、速やかに出す義務がある。偽りは保証義務の違反",
+      "fix": "自分が作った部分(作詞・作曲・編曲など)と日付を制作記録に残し、歌詞の下書きや作業のファイルを取っておく",
+      "source": "https://www.jasrac.or.jp/aboutus/ai/pdf/ai-guideline.pdf",
+      "section": "3 AI を利用した作品の届出・管理委託契約約款 第9条",
+      "checked": "2026-11-11",
+      "basis": "どの資料を出すかの形はガイドラインに書かれていない。制作記録はその備え"
     }
   ]
 }
