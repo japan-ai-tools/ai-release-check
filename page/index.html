@@ -66,6 +66,10 @@ details summary{cursor:pointer}
 <div class="checks" id="work">
 <label><input type="checkbox" value="作詞">作詞</label><label><input type="checkbox" value="作曲">作曲</label><label><input type="checkbox" value="編曲">編曲</label><label><input type="checkbox" value="歌">歌</label><label><input type="checkbox" value="演奏">演奏</label><label><input type="checkbox" value="ミックス">ミックス</label><label><input type="checkbox" value="マスタリング">マスタリング</label><label><input type="checkbox" value="ジャケット">ジャケット</label>
 </div>
+<div class="row">
+<div><label for="lyr_by">作詞</label><select id="lyr_by"><option value="">選ぶ</option><option value="human">自分(人)が書いた</option><option value="ai">AIが自律生成</option></select></div>
+<div><label for="mus_by">作曲</label><select id="mus_by"><option value="">選ぶ</option><option value="human">自分(人)が作った</option><option value="ai">AIが自律生成</option></select></div>
+</div>
 <label for="prompt">AIへの指示(プロンプト・制作記録に残すなら)</label><textarea id="prompt" style="min-height:70px"></textarea>
 </fieldset>
 
@@ -96,6 +100,7 @@ details summary{cursor:pointer}
 
 <fieldset><legend>配信先</legend>
 <div class="checks" id="plats"></div>
+<p class="note">JASRAC(作品届)は配信先ではなく、著作権の管理を頼むときの確認です。頼むときだけ選んでください。</p>
 </fieldset>
 
 <button type="submit">チェックする</button>
@@ -141,7 +146,8 @@ function today(){ var d = new Date(); return d.getFullYear()+'-'+('0'+(d.getMont
 $('rulesver').textContent = RULES.version + '(' + RULES.updated + ' 更新)';
 Object.keys(RULES.platforms).forEach(function(k){
   var l = document.createElement('label');
-  l.innerHTML = '<input type="checkbox" value="'+esc(k)+'" checked>' + esc(RULES.platforms[k].name);
+  var on = RULES.platforms[k].kind === 'rights' ? '' : ' checked';
+  l.innerHTML = '<input type="checkbox" value="'+esc(k)+'"'+on+'>' + esc(RULES.platforms[k].name);
   $('plats').appendChild(l);
 });
 function showQuota(){
@@ -171,6 +177,7 @@ function readSong(){
     title: $('title').value.trim(), artist: $('artist').value.trim(),
     featuring: $('featuring').value.split(/[,、]/).map(function(x){ return x.trim(); }).filter(Boolean),
     ai: { tool: $('tool').value.trim(), version: $('version').value.trim(), plan: $('plan').value, created: $('created').value },
+    authorship: { lyrics: $('lyr_by').value, music: $('mus_by').value },
     human_work: vals('work'), prompt: $('prompt').value, lyrics: $('lyrics').value,
     artwork: a,
     vocals: $('sounds').value.trim() || $('permission').checked ? { sounds_like: $('sounds').value.trim(), permission: $('permission').checked } : { sounds_like: '' },
