@@ -13,6 +13,7 @@ OFFICIAL = {
     "tunecore_japan": ("www.tunecore.co.jp", "support.tunecore.co.jp"),
     "distrokid": ("distrokid.com", "support.distrokid.com"),
     "jasrac": ("www.jasrac.or.jp",),
+    "nextone": ("www.nex-tone.co.jp",),
 }
 
 
