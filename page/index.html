@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIリリースチェック — AI曲の配信前チェック</title>
+<meta name="description" content="AIで作った曲を配信する前に、配信先ごとの決まりに合っているかを確かめる無料の道具。入れた情報は外に送りません。">
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1b;--sub:#5f5d57;--line:#dedbd2;--accent:#2f5d50;--ok:#2e7d4f;--warn:#a15c00;--block:#b3261e;--info:#475b8f;--chip:#eef1ec}
+@media (prefers-color-scheme:dark){:root{--bg:#161614;--card:#21211e;--ink:#ecebe6;--sub:#a9a79f;--line:#3a3933;--accent:#8cc4b0;--ok:#7ccf9a;--warn:#f0b35a;--block:#ff8a80;--info:#a9b8ec;--chip:#2b2e2a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:.6em 0 .2em}h2{font-size:1.15rem;margin:1.4em 0 .5em}
+p.lead{color:var(--sub);margin:.2em 0 1em}
+.note{font-size:.85rem;color:var(--sub);border-left:3px solid var(--line);padding:.3em .8em;margin:1em 0}
+fieldset{border:1px solid var(--line);border-radius:10px;background:var(--card);margin:0 0 14px;padding:12px 14px}
+legend{font-weight:700;padding:0 6px}
+label{display:block;margin:.5em 0 .2em;font-size:.92rem}
+input[type=text],input[type=date],select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:110px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>div{flex:1 1 180px}
+.checks label{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0}
+button{font:inherit;border:0;border-radius:10px;padding:12px 18px;background:var(--accent);color:#fff;cursor:pointer}
+button.sub{background:var(--chip);color:var(--ink);border:1px solid var(--line);padding:8px 12px}
+#quota{font-size:.9rem;color:var(--sub);margin:.5em 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0}
+.verdict{font-weight:700;border-radius:999px;padding:2px 12px;font-size:.9rem;display:inline-block}
+.v-ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.v-warn{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+.v-block{background:color-mix(in srgb,var(--block) 15%,transparent);color:var(--block)}
+.item{border-top:1px dashed var(--line);padding:8px 0;font-size:.92rem}
+.item b{display:inline-block;min-width:5.5em}
+.r-ng b{color:var(--block)}.r-manual b,.r-unverified b{color:var(--info)}.r-ok b{color:var(--ok)}
+.fix{margin:.2em 0;padding:.3em .6em;background:var(--chip);border-radius:6px}
+.src{font-size:.8rem;color:var(--sub);word-break:break-all}
+pre{white-space:pre-wrap;background:var(--chip);border-radius:8px;padding:10px;font-size:.88rem;margin:.4em 0}
+.tabs button{margin-right:6px}
+footer{font-size:.8rem;color:var(--sub);margin:30px 0 20px}
+details summary{cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>AIリリースチェック</h1>
+<p class="lead">AIで作った曲を配信する前に、配信先ごとの決まりに合っているかを確かめます。曲名・アーティスト名・ジャケット・歌詞・申告をまとめて見て、直し方と出典を出します。</p>
+<p class="note">個人が作った確認の手助けで、配信先(Apple Music・Spotify・YouTube・TuneCore Japan・DistroKid)の公式の道具ではありません。法律の助言でもありません。最終判断は各配信先の案内で確かめてください。入れた情報・画像はこの端末の中だけで使い、外には送りません。</p>
+
+<form id="f" autocomplete="off">
+<fieldset><legend>曲</legend>
+<label for="title">曲名</label><input type="text" id="title" placeholder="例: 雨の街">
+<label for="artist">アーティスト名</label><input type="text" id="artist" placeholder="例: MIRO">
+<label for="featuring">参加したアーティスト(いれば。カンマ区切り)</label><input type="text" id="featuring">
+</fieldset>
+
+<fieldset><legend>使ったAI</legend>
+<div class="row">
+<div><label for="tool">道具</label><input type="text" id="tool" placeholder="例: Suno(使っていなければ空)"></div>
+<div><label for="version">版</label><input type="text" id="version" placeholder="例: v5"></div>
+</div>
+<div class="row">
+<div><label for="plan">プラン</label><select id="plan"><option value="">選ぶ</option><option value="paid">有料</option><option value="free">無料</option></select></div>
+<div><label for="created">作った日</label><input type="date" id="created"></div>
+</div>
+<label>自分がしたこと</label>
+<div class="checks" id="work">
+<label><input type="checkbox" value="作詞">作詞</label><label><input type="checkbox" value="作曲">作曲</label><label><input type="checkbox" value="編曲">編曲</label><label><input type="checkbox" value="歌">歌</label><label><input type="checkbox" value="演奏">演奏</label><label><input type="checkbox" value="ミックス">ミックス</label><label><input type="checkbox" value="マスタリング">マスタリング</label><label><input type="checkbox" value="ジャケット">ジャケット</label>
+</div>
+<label for="prompt">AIへの指示(プロンプト・制作記録に残すなら)</label><textarea id="prompt" style="min-height:70px"></textarea>
+</fieldset>
+
+<fieldset><legend>歌と出し方</legend>
+<label for="sounds">実在の歌手に似せましたか(似せた人の名前。似せていなければ空)</label><input type="text" id="sounds">
+<div class="checks"><label><input type="checkbox" id="permission">似せた歌手の許可がある</label></div>
+<label for="dup">同じ曲(少しだけ変えた曲)をすでに出していますか</label>
+<select id="dup"><option value="">選ぶ</option><option value="no">出していない</option><option value="yes">出している</option></select>
+<div class="checks">
+<label><input type="checkbox" id="ytaltered">YouTube で「AIで作った・加工した」を申告する</label>
+<label><input type="checkbox" id="credits">配信会社の欄でAIを使った部分を示す</label>
+</div>
+</fieldset>
+
+<fieldset><legend>ジャケット</legend>
+<label for="art">画像(大きさと形式だけを読みます。外には送りません)</label><input type="file" id="art" accept="image/*">
+<div id="artinfo" class="src"></div>
+<label>ジャケットに入っている文字</label>
+<div class="checks" id="artkinds">
+<label><input type="checkbox" value="url">Webアドレス</label><label><input type="checkbox" value="social_handle">SNSのアカウント名</label><label><input type="checkbox" value="logo">ロゴ</label><label><input type="checkbox" value="qr">QRコード</label><label><input type="checkbox" value="release_date">発売日</label><label><input type="checkbox" value="price">価格</label><label><input type="checkbox" value="other">曲名・アーティスト名以外の文字</label>
+</div>
+<div class="checks"><label><input type="checkbox" id="artnone">曲名・アーティスト名のほかに文字は無い</label></div>
+</fieldset>
+
+<fieldset><legend>歌詞(出すなら)</legend>
+<textarea id="lyrics"></textarea>
+</fieldset>
+
+<fieldset><legend>配信先</legend>
+<div class="checks" id="plats"></div>
+</fieldset>
+
+<button type="submit">チェックする</button>
+<div id="quota"></div>
+</form>
+
+<section id="out" hidden>
+<h2>配信先ごとの結果</h2>
+<div id="verdicts"></div>
+<h2>登録情報の整え</h2>
+<div id="tidy" class="card"></div>
+<h2>制作記録(指摘されたときに出せる1枚)</h2>
+<div class="card"><pre id="record"></pre><button type="button" class="sub" id="copyrec">写す</button> <button type="button" class="sub" id="saverec">テキストで保存</button></div>
+<h2>SNS の投稿文の型</h2>
+<div class="card">
+<div class="tabs"><button type="button" class="sub" data-lang="ja">日本語</button><button type="button" class="sub" data-lang="en">English</button></div>
+<label for="link">曲のリンク(あれば)</label><input type="text" id="link" placeholder="https://">
+<div id="sns"></div>
+</div>
+</section>
+
+<footer>
+<p>決まりの表: <span id="rulesver"></span>。各項目の出典と確かめた日は結果に出ます。決まりは変わるので、配信の前に各配信先の最新の案内も見てください。</p>
+<p>無料で1か月に3曲まで(この端末の中で数えます)。制作記録とSNSの型はいまは無料で使えます。</p>
+<p>作り: NEXUS(個人の開発)。配信先の名前は説明のために使っているだけで、各社とは関係ありません。</p>
+</footer>
+</main>
+<script>/*@RULES@*/</script>
+<script>/*@CHECK@*/</script>
+<script>/*@QUOTA@*/</script>
+<script>/*@SNS@*/</script>
+<script>
+(function(){
+'use strict';
+var RULES = window.AIRC_RULES, RC = window.AIReleaseCheck, Q = window.AIReleaseQuota, SNS = window.AIReleaseSNS;
+var $ = function(id){ return document.getElementById(id); };
+var art = {}, lastSong = null, lang = 'ja';
+var store = null; try { store = window.localStorage; } catch (e) { store = null; }
+
+function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function today(){ var d = new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+
+$('rulesver').textContent = RULES.version + '(' + RULES.updated + ' 更新)';
+Object.keys(RULES.platforms).forEach(function(k){
+  var l = document.createElement('label');
+  l.innerHTML = '<input type="checkbox" value="'+esc(k)+'" checked>' + esc(RULES.platforms[k].name);
+  $('plats').appendChild(l);
+});
+function showQuota(){
+  if (!store) { $('quota').textContent = 'この端末では回数を数えられないため、そのまま使えます。'; return; }
+  var p = Q.peek(Q.load(store), Q.month());
+  $('quota').textContent = '今月の無料の残り: ' + p.left + '曲(同じ曲は何度でも)';
+}
+showQuota();
+
+$('art').addEventListener('change', function(){
+  var f = this.files && this.files[0]; art = {};
+  if (!f) { $('artinfo').textContent = ''; return; }
+  var fmt = (f.type.split('/')[1] || '').replace('jpeg','jpg');
+  var url = URL.createObjectURL(f), img = new Image();
+  img.onload = function(){ art = { width: img.naturalWidth, height: img.naturalHeight, format: fmt }; $('artinfo').textContent = art.width + '×' + art.height + 'px・' + fmt; URL.revokeObjectURL(url); };
+  img.onerror = function(){ $('artinfo').textContent = '画像を読めませんでした'; URL.revokeObjectURL(url); };
+  img.src = url;
+});
+
+function vals(id){ return Array.prototype.map.call(document.querySelectorAll('#'+id+' input:checked'), function(i){ return i.value; }); }
+function readSong(){
+  var kinds = vals('artkinds');
+  var a = { width: art.width, height: art.height, format: art.format };
+  if (kinds.length || $('artnone').checked) a.text_kinds = kinds;
+  var dup = $('dup').value;
+  return {
+    title: $('title').value.trim(), artist: $('artist').value.trim(),
+    featuring: $('featuring').value.split(/[,、]/).map(function(x){ return x.trim(); }).filter(Boolean),
+    ai: { tool: $('tool').value.trim(), version: $('version').value.trim(), plan: $('plan').value, created: $('created').value },
+    human_work: vals('work'), prompt: $('prompt').value, lyrics: $('lyrics').value,
+    artwork: a,
+    vocals: $('sounds').value.trim() || $('permission').checked ? { sounds_like: $('sounds').value.trim(), permission: $('permission').checked } : { sounds_like: '' },
+    release: dup ? { duplicate: dup === 'yes' } : {},
+    disclosures: { youtube_altered: $('ytaltered').checked, credits_ai: $('credits').checked },
+    platforms: vals('plats')
+  };
+}
+var RES = { ok: '合っている', ng: '直す', manual: '目で確かめる', unverified: '未確認' };
+function render(song){
+  var rep = RC.check(RULES, song), h = '';
+  rep.platforms.forEach(function(p){
+    h += '<div class="card"><div><strong>'+esc(p.name)+'</strong> <span class="verdict v-'+p.verdict+'">'+esc(p.verdict_ja)+'</span>'+(p.verdict==='ok'&&p.counts.info?' <span class="src">直すと良い所 '+p.counts.info+'</span>':'')+(p.counts.manual?' <span class="src">目で確かめる '+p.counts.manual+'</span>':'')+'</div>';
+    p.items.slice().sort(function(a,b){ var o={ng:0,manual:1,unverified:2,ok:3}; return o[a.result]-o[b.result]; }).forEach(function(i){
+      h += '<div class="item r-'+i.result+'"><b>'+RES[i.result]+'</b> '+esc(i.rule)+'<div>'+esc(i.detail)+'</div>';
+      if (i.fix) h += '<div class="fix">直し方: '+esc(i.fix)+'</div>';
+      if (i.basis) h += '<div class="src">'+esc(i.basis)+'</div>';
+      h += '<div class="src">出典: <a href="'+esc(i.source)+'" target="_blank" rel="noopener noreferrer">'+esc(i.source)+'</a> '+esc(i.section)+'(確かめた日 '+esc(i.checked)+')</div></div>';
+    });
+    h += '</div>';
+  });
+  $('verdicts').innerHTML = h;
+  var t = RC.tidy(song, RULES), th = '';
+  [['曲名', t.title], ['歌詞', t.lyrics], ['ジャケット', t.artwork]].forEach(function(x){
+    if (!x[1]) return;
+    th += '<div class="item"><b>'+x[0]+'</b> '+(x[1].changes.length ? esc(x[1].changes.join('・')) : '直すところはありません');
+    if (x[1].changes.length && x[1].value) th += '<pre>'+esc(x[1].value)+'</pre>';
+    (x[1].notes || []).forEach(function(n){ th += '<div class="fix">'+esc(n)+'</div>'; });
+    th += '</div>';
+  });
+  $('tidy').innerHTML = th;
+  $('record').textContent = RC.productionRecord(song, rep, today());
+  renderSNS();
+  $('out').hidden = false;
+  $('out').scrollIntoView({ behavior: 'smooth' });
+}
+function renderSNS(){
+  if (!lastSong) return;
+  var p = SNS.posts(lastSong, lang, { link: $('link').value.trim() }), h = '';
+  [['YouTube の題名', p.youtube_title], ['YouTube の説明文', p.youtube_description], ['YouTube のタグ', p.youtube_tags.join(', ')], ['X', p.x], ['TikTok', p.tiktok]].forEach(function(x){
+    h += '<label>'+x[0]+'</label><pre>'+esc(x[1])+'</pre>';
+  });
+  $('sns').innerHTML = h;
+}
+document.querySelectorAll('.tabs button').forEach(function(b){ b.addEventListener('click', function(){ lang = b.getAttribute('data-lang'); renderSNS(); }); });
+$('link').addEventListener('input', renderSNS);
+$('copyrec').addEventListener('click', function(){ try { navigator.clipboard.writeText($('record').textContent); this.textContent = '写しました'; } catch (e) {} });
+$('saverec').addEventListener('click', function(){
+  var blob = new Blob([$('record').textContent], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '制作記録_' + (lastSong.title || '曲') + '.txt'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+});
+$('f').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var song = readSong();
+  if (!song.title || !song.artist) { $('quota').textContent = '曲名とアーティスト名を入れてください。'; return; }
+  if (!song.platforms.length) { $('quota').textContent = '配信先を1つ以上選んでください。'; return; }
+  if (store) {
+    var u = Q.use(Q.load(store), song, Q.month());
+    if (!u.allowed) { $('out').hidden = true; $('quota').textContent = '今月の無料の3曲を使い切りました。来月また使えます(同じ曲はもう一度確かめられます)。'; return; }
+    Q.save(store, u.state);
+  }
+  lastSong = song;
+  showQuota();
+  render(song);
+});
+})();
+</script>
+</body>
+</html>
