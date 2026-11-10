@@ -234,6 +234,13 @@
       return { result: 'ng', detail: '作品届に「' + side + ':AI 自律生成」と書く。管理率は 曲だけ使用' + s2.music_only + '%・詞曲' + s2.both + '%・詞だけ使用' + s2.lyrics_only + '%' };
     },
 
+    authorship_disclosed_none: function (song) {
+      var a = song.authorship || {};
+      var usedAi = a.lyrics === 'ai' || a.music === 'ai' || has((song.ai || {}).tool);
+      if (!usedAi) return { result: 'ok', detail: 'AIを使っていない(入力なし)' };
+      return { result: 'ng', detail: 'AIを使った作品。扱いが公表されていないので、届ける前に問い合わせる' };
+    },
+
     human_contribution_record: function (song) {
       var a = song.authorship || {};
       if (a.lyrics === 'ai' && a.music === 'ai') return { result: 'ok', detail: '届け出の対象外' };
