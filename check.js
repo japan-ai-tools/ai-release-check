@@ -217,6 +217,32 @@
       return { result: 'ng', detail: s(ai.tool) + ' を使っているが、示す予定になっていない' };
     },
 
+    authorship_autonomous: function (song) {
+      var a = song.authorship || {};
+      if (!has(a.lyrics) || !has(a.music)) return { result: 'manual', detail: '作詞・作曲をだれがしたかが未回答' };
+      if (a.lyrics === 'ai' && a.music === 'ai') return { result: 'ng', detail: '歌詞も曲もAIの自律生成。JASRAC は管理しない' };
+      return { result: 'ok', detail: '人が作った部分がある' };
+    },
+
+    authorship_partial: function (song, p) {
+      var a = song.authorship || {};
+      if (!has(a.lyrics) || !has(a.music)) return { result: 'manual', detail: '作詞・作曲をだれがしたかが未回答' };
+      if (a.lyrics === 'ai' && a.music === 'ai') return { result: 'ok', detail: '両方AIのため届け出の対象外(上の項目)' };
+      if (a.lyrics !== 'ai' && a.music !== 'ai') return { result: 'ok', detail: '作詞・作曲とも人。ふつうの届け出' };
+      var side = a.lyrics === 'ai' ? '作詞' : '作曲';
+      var s2 = a.lyrics === 'ai' ? p.lyrics_ai : p.music_ai;
+      return { result: 'ng', detail: '作品届に「' + side + ':AI 自律生成」と書く。管理率は 曲だけ使用' + s2.music_only + '%・詞曲' + s2.both + '%・詞だけ使用' + s2.lyrics_only + '%' };
+    },
+
+    human_contribution_record: function (song) {
+      var a = song.authorship || {};
+      if (a.lyrics === 'ai' && a.music === 'ai') return { result: 'ok', detail: '届け出の対象外' };
+      var hw = song.human_work || [];
+      if (!has((song.ai || {}).tool)) return { result: 'ok', detail: 'AIの道具を使っていない(入力なし)' };
+      if (hw.length) return { result: 'ok', detail: '自分がしたこと(' + hw.join('・') + ')を制作記録に残せる' };
+      return { result: 'ng', detail: 'AIを使っていて、自分がしたことが未記入。資料を求められたときに出せない' };
+    },
+
     rights_plan: function (song) {
       var ai = song.ai || {};
       if (!has(ai.tool)) return { result: 'manual', detail: '使った道具が未入力。素材の権利を自分で確かめる' };
@@ -239,7 +265,8 @@
   function check(rules, song) {
     if (!rules || !rules.rules) throw new Error('rules.json の形ではない');
     song = song || {};
-    var chosen = Array.isArray(song.platforms) && song.platforms.length ? song.platforms : Object.keys(rules.platforms);
+    var chosen = Array.isArray(song.platforms) && song.platforms.length ? song.platforms
+      : Object.keys(rules.platforms).filter(function (k) { return rules.platforms[k].kind !== 'rights'; });
     var unknown = chosen.filter(function (k) { return !rules.platforms[k]; });
     if (unknown.length) throw new Error('知らない配信先: ' + unknown.join(', '));
     var out = { version: rules.version, rules_updated: rules.updated, note: rules.note, platforms: [] };
@@ -357,6 +384,14 @@
     L.push('プラン: ' + ({ paid: '有料', free: '無料' }[low(ai.plan)] || '(未記入)'));
     L.push('作った日: ' + (s(ai.created) || '(未記入)'));
     L.push('');
+    var au = song.authorship || {};
+    var WHO = { human: '人', ai: 'AI 自律生成' };
+    if (has(au.lyrics) || has(au.music)) {
+      L.push('[作詞・作曲]');
+      L.push('作詞: ' + (WHO[au.lyrics] || '(未回答)'));
+      L.push('作曲: ' + (WHO[au.music] || '(未回答)'));
+      L.push('');
+    }
     L.push('[自分がしたこと]');
     var hw = song.human_work || [];
     if (hw.length) hw.forEach(function (w) { L.push('- ' + w); }); else L.push('- (未記入)');
