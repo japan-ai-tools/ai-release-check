@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIリリースチェック — AI曲の配信前チェック</title>
+<meta name="description" content="AIで作った曲を配信する前に、配信先ごとの決まりに合っているかを確かめる無料の道具。入れた情報は外に送りません。">
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1b;--sub:#5f5d57;--line:#dedbd2;--accent:#2f5d50;--ok:#2e7d4f;--warn:#a15c00;--block:#b3261e;--info:#475b8f;--chip:#eef1ec}
+@media (prefers-color-scheme:dark){:root{--bg:#161614;--card:#21211e;--ink:#ecebe6;--sub:#a9a79f;--line:#3a3933;--accent:#8cc4b0;--ok:#7ccf9a;--warn:#f0b35a;--block:#ff8a80;--info:#a9b8ec;--chip:#2b2e2a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:.6em 0 .2em}h2{font-size:1.15rem;margin:1.4em 0 .5em}
+p.lead{color:var(--sub);margin:.2em 0 1em}
+.note{font-size:.85rem;color:var(--sub);border-left:3px solid var(--line);padding:.3em .8em;margin:1em 0}
+fieldset{border:1px solid var(--line);border-radius:10px;background:var(--card);margin:0 0 14px;padding:12px 14px}
+legend{font-weight:700;padding:0 6px}
+label{display:block;margin:.5em 0 .2em;font-size:.92rem}
+input[type=text],input[type=date],select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:110px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>div{flex:1 1 180px}
+.checks label{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0}
+button{font:inherit;border:0;border-radius:10px;padding:12px 18px;background:var(--accent);color:#fff;cursor:pointer}
+button.sub{background:var(--chip);color:var(--ink);border:1px solid var(--line);padding:8px 12px}
+#quota{font-size:.9rem;color:var(--sub);margin:.5em 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0}
+.verdict{font-weight:700;border-radius:999px;padding:2px 12px;font-size:.9rem;display:inline-block}
+.v-ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.v-warn{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+.v-block{background:color-mix(in srgb,var(--block) 15%,transparent);color:var(--block)}
+.item{border-top:1px dashed var(--line);padding:8px 0;font-size:.92rem}
+.item b{display:inline-block;min-width:5.5em}
+.r-ng b{color:var(--block)}.r-manual b,.r-unverified b{color:var(--info)}.r-ok b{color:var(--ok)}
+.fix{margin:.2em 0;padding:.3em .6em;background:var(--chip);border-radius:6px}
+.src{font-size:.8rem;color:var(--sub);word-break:break-all}
+pre{white-space:pre-wrap;background:var(--chip);border-radius:8px;padding:10px;font-size:.88rem;margin:.4em 0}
+.tabs button{margin-right:6px}
+footer{font-size:.8rem;color:var(--sub);margin:30px 0 20px}
+details summary{cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>AIリリースチェック</h1>
+<p class="lead">AIで作った曲を配信する前に、配信先ごとの決まりに合っているかを確かめます。曲名・アーティスト名・ジャケット・歌詞・申告をまとめて見て、直し方と出典を出します。</p>
+<p class="note">個人が作った確認の手助けで、配信先(Apple Music・Spotify・YouTube・TuneCore Japan・DistroKid)の公式の道具ではありません。法律の助言でもありません。最終判断は各配信先の案内で確かめてください。入れた情報・画像はこの端末の中だけで使い、外には送りません。</p>
+
+<form id="f" autocomplete="off">
+<fieldset><legend>曲</legend>
+<label for="title">曲名</label><input type="text" id="title" placeholder="例: 雨の街">
+<label for="artist">アーティスト名</label><input type="text" id="artist" placeholder="例: MIRO">
+<label for="featuring">参加したアーティスト(いれば。カンマ区切り)</label><input type="text" id="featuring">
+</fieldset>
+
+<fieldset><legend>使ったAI</legend>
+<div class="row">
+<div><label for="tool">道具</label><input type="text" id="tool" placeholder="例: Suno(使っていなければ空)"></div>
+<div><label for="version">版</label><input type="text" id="version" placeholder="例: v5"></div>
+</div>
+<div class="row">
+<div><label for="plan">プラン</label><select id="plan"><option value="">選ぶ</option><option value="paid">有料</option><option value="free">無料</option></select></div>
+<div><label for="created">作った日</label><input type="date" id="created"></div>
+</div>
+<label>自分がしたこと</label>
+<div class="checks" id="work">
+<label><input type="checkbox" value="作詞">作詞</label><label><input type="checkbox" value="作曲">作曲</label><label><input type="checkbox" value="編曲">編曲</label><label><input type="checkbox" value="歌">歌</label><label><input type="checkbox" value="演奏">演奏</label><label><input type="checkbox" value="ミックス">ミックス</label><label><input type="checkbox" value="マスタリング">マスタリング</label><label><input type="checkbox" value="ジャケット">ジャケット</label>
+</div>
+<label for="prompt">AIへの指示(プロンプト・制作記録に残すなら)</label><textarea id="prompt" style="min-height:70px"></textarea>
+</fieldset>
+
+<fieldset><legend>歌と出し方</legend>
+<label for="sounds">実在の歌手に似せましたか(似せた人の名前。似せていなければ空)</label><input type="text" id="sounds">
+<div class="checks"><label><input type="checkbox" id="permission">似せた歌手の許可がある</label></div>
+<label for="dup">同じ曲(少しだけ変えた曲)をすでに出していますか</label>
+<select id="dup"><option value="">選ぶ</option><option value="no">出していない</option><option value="yes">出している</option></select>
+<div class="checks">
+<label><input type="checkbox" id="ytaltered">YouTube で「AIで作った・加工した」を申告する</label>
+<label><input type="checkbox" id="credits">配信会社の欄でAIを使った部分を示す</label>
+</div>
+</fieldset>
+
+<fieldset><legend>ジャケット</legend>
+<label for="art">画像(大きさと形式だけを読みます。外には送りません)</label><input type="file" id="art" accept="image/*">
+<div id="artinfo" class="src"></div>
+<label>ジャケットに入っている文字</label>
+<div class="checks" id="artkinds">
+<label><input type="checkbox" value="url">Webアドレス</label><label><input type="checkbox" value="social_handle">SNSのアカウント名</label><label><input type="checkbox" value="logo">ロゴ</label><label><input type="checkbox" value="qr">QRコード</label><label><input type="checkbox" value="release_date">発売日</label><label><input type="checkbox" value="price">価格</label><label><input type="checkbox" value="other">曲名・アーティスト名以外の文字</label>
+</div>
+<div class="checks"><label><input type="checkbox" id="artnone">曲名・アーティスト名のほかに文字は無い</label></div>
+</fieldset>
+
+<fieldset><legend>歌詞(出すなら)</legend>
+<textarea id="lyrics"></textarea>
+</fieldset>
+
+<fieldset><legend>配信先</legend>
+<div class="checks" id="plats"></div>
+</fieldset>
+
+<button type="submit">チェックする</button>
+<div id="quota"></div>
+</form>
+
+<section id="out" hidden>
+<h2>配信先ごとの結果</h2>
+<div id="verdicts"></div>
+<h2>登録情報の整え</h2>
+<div id="tidy" class="card"></div>
+<h2>制作記録(指摘されたときに出せる1枚)</h2>
+<div class="card"><pre id="record"></pre><button type="button" class="sub" id="copyrec">写す</button> <button type="button" class="sub" id="saverec">テキストで保存</button></div>
+<h2>SNS の投稿文の型</h2>
+<div class="card">
+<div class="tabs"><button type="button" class="sub" data-lang="ja">日本語</button><button type="button" class="sub" data-lang="en">English</button></div>
+<label for="link">曲のリンク(あれば)</label><input type="text" id="link" placeholder="https://">
+<div id="sns"></div>
+</div>
+</section>
+
+<footer>
+<p>決まりの表: <span id="rulesver"></span>。各項目の出典と確かめた日は結果に出ます。決まりは変わるので、配信の前に各配信先の最新の案内も見てください。</p>
+<p>無料で1か月に3曲まで(この端末の中で数えます)。制作記録とSNSの型はいまは無料で使えます。</p>
+<p>作り: NEXUS(個人の開発)。配信先の名前は説明のために使っているだけで、各社とは関係ありません。</p>
+</footer>
+</main>
+<script>window.AIRC_RULES = {"version": "0.2.0", "updated": "2026-11-11", "note": "配信先の公式の案内から読み取った決まりだけを載せる。公式で確かめられなかった項目は status=unverified とし、チェックでは「未確認」と表示する。法律の助言ではない。最終判断は各配信先の案内で。", "levels": {"block": "断られる", "warn": "危ない", "info": "確認"}, "platforms": {"apple_music": {"name": "Apple Music", "kind": "store"}, "spotify": {"name": "Spotify", "kind": "store"}, "youtube": {"name": "YouTube", "kind": "video"}, "tunecore_japan": {"name": "TuneCore Japan", "kind": "distributor"}, "distrokid": {"name": "DistroKid", "kind": "distributor"}}, "rules": [{"id": "apple.art.no_urls_logos", "platform": "apple_music", "field": "artwork", "level": "block", "status": "verified", "check": "artwork_has_text", "params": {"kinds": ["url", "logo", "qr", "release_date", "price", "social_handle"]}, "rule": "ジャケットに Web アドレス・ロゴ・QRコード・発売日・価格・SNSのアカウント名を入れない", "fix": "ジャケットの文字はアーティスト名と曲名だけにする", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "7.3 / 1.2", "checked": "2026-11-11"}, {"id": "apple.art.quality", "platform": "apple_music", "field": "artwork", "level": "warn", "status": "verified", "check": "manual", "rule": "ジャケットは低画質・ぼやけ・ずれ・回転のある画像にしない。AIで加工した場合も文字が崩れていないこと", "fix": "元の大きさの画像を使い、AIで作った文字の崩れを直す", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "7.2 / 7.20", "checked": "2026-11-11"}, {"id": "apple.art.accuracy", "platform": "apple_music", "field": "artwork", "level": "warn", "status": "verified", "check": "manual", "rule": "使い回しのテンプレートや作品と合わないジャケットにしない", "fix": "その曲のためのジャケットを使う", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "7.1", "checked": "2026-11-11"}, {"id": "apple.artist.generic", "platform": "apple_music", "field": "artist", "level": "block", "status": "verified", "check": "artist_generic", "params": {"words": ["white noise", "yoga", "music for dogs", "lo-fi", "lofi", "relaxing music", "sleep music"]}, "rule": "White Noise・Yoga・Lo-Fi のような一般的な言葉をアーティスト名にしない", "fix": "固有のアーティスト名にする", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "2.2", "checked": "2026-11-11"}, {"id": "apple.artist.one_name", "platform": "apple_music", "field": "artist", "level": "warn", "status": "verified", "check": "artist_compound", "params": {"separators": [",", "&", " x ", " X ", "、", "/"]}, "rule": "アーティスト欄1つに名前は1つだけ", "fix": "参加者は別の欄(Featuring/With)に分ける", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "2.3", "checked": "2026-11-11"}, {"id": "apple.artist.non_performer", "platform": "apple_music", "field": "artist", "level": "block", "status": "verified", "check": "artist_is_tool", "params": {"tools": ["suno", "udio", "sunoai", "suno ai", "chatgpt", "openai", "stable audio", "aiva", "boomy", "mubert", "soundraw"]}, "rule": "演奏していない者(会社・スタジオ・制作者)を主アーティストや Featuring にしない。AIの道具の名前も演奏者ではない", "fix": "アーティスト欄から道具の名前を削る。使った道具は制作記録に書く", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "2.6 / 2.14 / 2.16", "checked": "2026-11-11", "basis": "Apple の案内は会社・スタジオ・演奏しない人を主アーティストにしないと書く。AIの道具名を名指しした記載は無いため、道具名をこの決まりに当てはめたのは NEXUS の読み方"}, {"id": "apple.title.feat", "platform": "apple_music", "field": "title", "level": "warn", "status": "verified", "check": "title_feat_format", "rule": "参加者の表記は小文字の英語「feat.」で、かっこの中に書く。featuring・Feat・w/ は使わない", "fix": "例: Song Name (feat. Artist)", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "2.13", "checked": "2026-11-11"}, {"id": "apple.title.extra_words", "platform": "apple_music", "field": "title", "level": "block", "status": "verified", "check": "title_extra_words", "params": {"words": ["exclusive", "limited edition", "album version", "original mix", "official music video", "(explicit)", "(clean)", "(edited)"]}, "rule": "曲名に Exclusive・Limited Edition・Album Version・Original Mix・(Explicit) などを入れない。検索語やアーティスト情報も入れない", "fix": "曲名だけにする", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "3.2 / 6.1 / 6.2", "checked": "2026-11-11"}, {"id": "apple.title.case", "platform": "apple_music", "field": "title", "level": "warn", "status": "verified", "check": "title_case_en", "rule": "英語の曲名は全部大文字・全部小文字・ばらばらにしない(タイトルケースにする)", "fix": "例: Walking In The Rain → Walking in the Rain", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "3.20 / 3.21", "checked": "2026-11-11"}, {"id": "apple.lyrics.punct", "platform": "apple_music", "field": "lyrics", "level": "info", "status": "verified", "check": "lyrics_line_end_punct", "rule": "歌詞の行の終わりに句点やカンマを付けない。歌詞は音と合っていること", "fix": "行の終わりの「.」「,」を消す", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "Lyrics Guidelines", "checked": "2026-11-11"}, {"id": "spotify.voice.impersonation", "platform": "spotify", "field": "vocals", "level": "block", "status": "verified", "check": "voice_impersonation", "rule": "実在の歌手の声に似せた歌(AIの声の複製を含む)は、その歌手の許可があるときだけ", "fix": "実在の歌手の名前を声の指定に使わない。許可が無ければ出さない", "source": "https://newsroom.spotify.com/2025-09-25/spotify-strengthens-ai-protections/", "section": "Impersonation", "checked": "2026-11-11"}, {"id": "spotify.spam", "platform": "spotify", "field": "release", "level": "warn", "status": "verified", "check": "spam_pattern", "rule": "大量の投稿・重複・検索語のごまかし・わざと短い曲は、迷惑行為として印を付けられ、おすすめに出なくなる", "fix": "同じ曲の出し直しや短すぎる曲の量産をしない", "source": "https://newsroom.spotify.com/2025-09-25/spotify-strengthens-ai-protections/", "section": "Spam filter", "checked": "2026-11-11", "basis": "数のしきい値(何曲・何秒)は公式に書かれていない"}, {"id": "spotify.ai_credit", "platform": "spotify", "field": "credits", "level": "info", "status": "verified", "check": "ai_disclosure", "rule": "AIを使った部分(歌・楽器・仕上げ)は DDEX の形でクレジットに示せる。示しても順位は下げないと書かれている", "fix": "配信会社の入力欄にAIを使った部分を書く(欄があれば)", "source": "https://newsroom.spotify.com/2025-09-25/spotify-strengthens-ai-protections/", "section": "AI disclosures", "checked": "2026-11-11"}, {"id": "youtube.synthetic.disclose", "platform": "youtube", "field": "upload", "level": "warn", "status": "verified", "check": "ai_disclosure", "rule": "本物らしく見えるAIの生成・加工は申告が要る。動画の中心がAIの音楽のときも対象。申告だけで視聴者や収益は減らない", "fix": "投稿時の「改変または合成されたコンテンツ」で「はい」を選ぶ", "source": "https://support.google.com/youtube/answer/14328491", "section": "Disclosure", "checked": "2026-11-11"}, {"id": "youtube.monetization.mass", "platform": "youtube", "field": "release", "level": "warn", "status": "verified", "check": "spam_pattern", "rule": "ありふれた型で量産したようなAIの作品は収益化の対象外(2025-07-15 に「inauthentic content」と改名)", "fix": "1曲ずつ違う動画・説明にする", "source": "https://support.google.com/youtube/answer/1311392", "section": "Inauthentic content", "checked": "2026-11-11"}, {"id": "tunecore.art.spec", "platform": "tunecore_japan", "field": "artwork", "level": "block", "status": "verified", "check": "artwork_size", "params": {"min_px": 3000, "square": true, "formats": ["jpg", "jpeg", "png"]}, "rule": "ジャケットは正方形・縦横3,000px以上・JPGかPNG", "fix": "3000×3000px のJPGかPNGで書き出す", "source": "https://www.tunecore.co.jp/guide/articles/music-release-cover-art", "section": "ジャケット", "checked": "2026-11-11"}, {"id": "tunecore.art.extra_info", "platform": "tunecore_japan", "field": "artwork", "level": "warn", "status": "verified", "check": "artwork_has_text", "params": {"kinds": ["url", "logo", "qr", "release_date", "price", "social_handle", "other"]}, "rule": "ジャケットにアーティスト名・作品名以外の関係の無い情報を入れない。他人のロゴや画像を許可なく使わない", "fix": "ジャケットの文字はアーティスト名と曲名だけにする", "source": "https://www.tunecore.co.jp/guide/articles/music-release-cover-art", "section": "ジャケット", "checked": "2026-11-11"}, {"id": "tunecore.rights", "platform": "tunecore_japan", "field": "rights", "level": "warn", "status": "verified", "check": "rights_plan", "rule": "登録する人が必要な権利をすべて持ち、他人の権利を侵さないこと(利用規約 第5条)", "fix": "使ったAIの道具のプランが商用利用を認めているか、その道具の規約で確かめる", "source": "https://www.tunecore.co.jp/terms/person", "section": "第5条(2025-12-22 改定版)", "checked": "2026-11-11", "basis": "規約にAIを名指しした条文は読めた範囲で見つからない。無料プランの扱いは各AIの道具の規約による"}, {"id": "tunecore.ai_policy", "platform": "tunecore_japan", "field": "ai", "level": "info", "status": "unverified", "check": "manual", "rule": "生成AIの曲の扱い(公式の配信規程)は今回読めなかった", "fix": "TuneCore Japan のヘルプの「配信規程」を出す前に確かめる", "source": "https://www.tunecore.co.jp/terms/person", "section": "配信規程(未読)", "checked": "2026-11-11"}, {"id": "distrokid.ai_policy", "platform": "distrokid", "field": "ai", "level": "info", "status": "unverified", "check": "manual", "rule": "DistroKid のAIの曲・ジャケット・アーティスト名の決まりは、公式のページで今回確かめられなかった", "fix": "DistroKid のヘルプで確かめてから出す", "source": "https://support.distrokid.com/hc/en-us", "section": "未確認", "checked": "2026-11-11"}, {"id": "apple.meta.no_side_by_side", "platform": "apple_music", "field": "title", "level": "warn", "status": "verified", "check": "side_by_side_translation", "rule": "曲名・アーティスト名に訳を横に並べて書かない(例: 雨の街 (Ame no Machi))。訳や読みは配信会社の別の欄に入れる", "fix": "欄には元の言葉だけを書く。英語の表記は配信会社の「翻訳・読み」の欄に入れる", "source": "https://help.apple.com/itc/musicstyleguide/en.lproj/static.html", "section": "1.9 / 2.1", "checked": "2026-11-11"}, {"id": "spotify.meta.no_side_by_side", "platform": "spotify", "field": "artist", "level": "warn", "status": "verified", "check": "side_by_side_translation", "rule": "アーティスト名に別名や訳を同じ欄に並べない(例: 玉置浩二 (Kōji Tamaki) は誤り)。日本語の名前は元の順(姓→名)で書く", "fix": "欄には元の名前だけを書き、訳は別に出す。名前の順は入れかえない", "source": "https://providersupport.spotify.com/article/spotify-metadata-style-guide-msg", "section": "1.4 / 1.6", "checked": "2026-11-11"}, {"id": "spotify.title.no_feat", "platform": "spotify", "field": "title", "level": "warn", "status": "verified", "check": "title_has_feat", "rule": "参加者は曲名に書かず、参加者の欄に分けて入れる(Apple Music の「(feat. 名前)」とは扱いが逆)", "fix": "曲名から「feat. 名前」を消し、配信会社の参加者(Featuring)の欄に名前を入れる", "source": "https://providersupport.spotify.com/article/spotify-metadata-style-guide-msg", "section": "5.1 / 5.3", "checked": "2026-11-11", "basis": "Spotify の案内は曲名に参加者を書いた例を誤りとしている。配信会社によっては自動で曲名に付けるため、入力の欄で分けるという読み方"}]};</script>
+<script>/*
+ * AIリリースチェック — チェックの本体
+ * ブラウザでも node でも動く。外に何も送らない(通信なし・保存なし)。
+ * 決まりは rules.json(出典・節・確かめた日つき)。法律の助言ではない。最終判断は各配信先の案内で。
+ *
+ * 使い方:
+ *   const RC = require('./check.js');            // node
+ *   const report = RC.check(rules, song);        // 配信先ごとの 通る/危ない/断られる
+ *   const meta = RC.tidy(song);                  // 登録情報の整え(曲名・歌詞・ジャケット)
+ *   const text = RC.productionRecord(song, report, '2026-11-11'); // 制作記録
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.AIReleaseCheck = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var VERDICT = { ok: '通る', warn: '危ない', block: '断られる' };
+  var KIND_JA = {
+    url: 'Webアドレス', logo: 'ロゴ', qr: 'QRコード', release_date: '発売日',
+    price: '価格', social_handle: 'SNSのアカウント名', other: '曲名・アーティスト名以外の文字'
+  };
+
+  function s(v) { return (v === undefined || v === null) ? '' : String(v); }
+  function low(v) { return s(v).toLowerCase().trim(); }
+  function has(v) { return v !== undefined && v !== null && s(v).trim() !== ''; }
+  function names(song) {
+    var out = [];
+    if (has(song.artist)) out.push(s(song.artist));
+    (song.featuring || []).forEach(function (f) { if (has(f)) out.push(s(f)); });
+    return out;
+  }
+  // 英数字の単語の境目で探す(studio の中の udio などを拾わない)
+  function wordIn(text, word) {
+    var esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '[\\s_-]*');
+    return new RegExp('(^|[^a-z0-9])' + esc + '($|[^a-z0-9])', 'i').test(text);
+  }
+  function isLatinTitle(t) {
+    var letters = t.replace(/[^A-Za-z\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/g, '');
+    if (!letters) return false;
+    return /^[A-Za-z]+$/.test(letters);
+  }
+
+  var CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uff66-\uff9f]/;
+  // 「元の言葉 (英字)」「英字 (元の言葉)」「元の言葉 / 英字」の形。feat. や Remix などのかっこは除く
+  function sideBySide(v) {
+    var KEEP = /^(feat\.|with |prod\.|remix|live|acoustic|instrumental|radio edit|extended|version|ver\.|demo|cover|karaoke)/i;
+    // 末尾の参加者(feat. 名前)・版の印((Live) など)を外してから見る(2026-11-11: 「雨の街 (Ame no Machi) feat. Rin」を見逃していた)
+    var prev;
+    do {
+      prev = v;
+      v = v.replace(/\s+(feat\.|ft\.|featuring)\s.+$/i, '').trim();
+      var tail = v.match(/^(.+?)\s*[\(\[\uff08]([^\)\]\uff09]+)[\)\]\uff09]\s*$/);
+      if (tail && (KEEP.test(tail[2].trim()) || /^ft\./i.test(tail[2].trim()) || /(remix|version|mix|edit|live)$/i.test(tail[2].trim()))) v = tail[1].trim();
+    } while (v !== prev);
+    var m = v.match(/^(.+?)\s*[\(\[\uff08]([^\)\]\uff09]+)[\)\]\uff09]\s*$/);
+    if (m) {
+      var a = m[1], b = m[2].trim();
+      if (KEEP.test(b) || /(remix|version|mix|edit|live)$/i.test(b)) return false;
+      if (CJK.test(a) && !CJK.test(b) && /[A-Za-z\u00c0-\u024f]{2}/.test(b)) return true;
+      if (!CJK.test(a) && /[A-Za-z]{2}/.test(a) && CJK.test(b)) return true;
+      return false;
+    }
+    var parts = v.split(/\s+[\/|]\s+/);
+    if (parts.length === 2) {
+      var x = CJK.test(parts[0]), y = CJK.test(parts[1]);
+      return x !== y && /[A-Za-z]{2}/.test(x ? parts[1] : parts[0]);
+    }
+    return false;
+  }
+
+  // ---- 1つずつの確かめ。戻り値: {result:'ok'|'ng'|'manual', detail} ----
+  var CHECKS = {
+    manual: function () { return { result: 'manual', detail: '自動では確かめられない。下の決まりを目で確かめる' }; },
+
+    artwork_has_text: function (song, p) {
+      var art = song.artwork || {};
+      if (!Array.isArray(art.text_kinds)) return { result: 'manual', detail: 'ジャケットに入れた文字の種類が未入力' };
+      var hit = art.text_kinds.filter(function (k) { return p.kinds.indexOf(k) >= 0; });
+      if (!hit.length) return { result: 'ok', detail: '入れてはいけない文字は無い' };
+      return { result: 'ng', detail: 'ジャケットに ' + hit.map(function (k) { return KIND_JA[k] || k; }).join('・') + ' がある' };
+    },
+
+    artwork_size: function (song, p) {
+      var art = song.artwork || {};
+      if (!art.width || !art.height) return { result: 'manual', detail: 'ジャケットの縦横の大きさが未入力' };
+      var bad = [];
+      if (art.width < p.min_px || art.height < p.min_px) bad.push(art.width + '×' + art.height + 'px(' + p.min_px + 'px 未満)');
+      if (p.square && art.width !== art.height) bad.push('正方形ではない');
+      if (has(art.format) && p.formats.indexOf(low(art.format)) < 0) bad.push(s(art.format) + ' 形式');
+      if (!has(art.format)) return bad.length ? { result: 'ng', detail: bad.join('・') } : { result: 'manual', detail: '大きさは合っている。ファイル形式が未入力' };
+      return bad.length ? { result: 'ng', detail: bad.join('・') } : { result: 'ok', detail: art.width + '×' + art.height + 'px・' + s(art.format) };
+    },
+
+    artist_generic: function (song, p) {
+      if (!has(song.artist)) return { result: 'manual', detail: 'アーティスト名が未入力' };
+      var a = low(song.artist).replace(/\s+/g, ' ');
+      return p.words.indexOf(a) >= 0
+        ? { result: 'ng', detail: '「' + s(song.artist) + '」は一般的な言葉' }
+        : { result: 'ok', detail: '固有の名前' };
+    },
+
+    artist_compound: function (song, p) {
+      if (!has(song.artist)) return { result: 'manual', detail: 'アーティスト名が未入力' };
+      var a = s(song.artist);
+      var hit = p.separators.filter(function (sep) { return a.indexOf(sep) >= 0; });
+      return hit.length
+        ? { result: 'ng', detail: 'アーティスト欄に区切り「' + hit.join('」「').trim() + '」がある(複数の名前の疑い)' }
+        : { result: 'ok', detail: '名前は1つ' };
+    },
+
+    artist_is_tool: function (song, p) {
+      var list = names(song);
+      if (!list.length) return { result: 'manual', detail: 'アーティスト名が未入力' };
+      var hits = [];
+      list.forEach(function (n) {
+        p.tools.forEach(function (t) { if (wordIn(n, t) && hits.indexOf(t) < 0) hits.push(t); });
+      });
+      return hits.length
+        ? { result: 'ng', detail: 'アーティスト欄・参加者欄に道具の名前(' + hits.join('・') + ')がある' }
+        : { result: 'ok', detail: '道具の名前は無い' };
+    },
+
+    title_feat_format: function (song) {
+      var t = s(song.title);
+      if (!t) return { result: 'manual', detail: '曲名が未入力' };
+      var re = /(featuring|feat\.?|ft\.?|w\/)(?=\s|$)/ig, m, bad = [];
+      while ((m = re.exec(t)) !== null) {
+        var before = t.slice(Math.max(0, m.index - 1), m.index);
+        var ok = m[0] === 'feat.' && before === '(';
+        if (!ok) bad.push(m[0]);
+      }
+      return bad.length
+        ? { result: 'ng', detail: '「' + bad.join('」「') + '」の書き方。正しくは「(feat. 名前)」' }
+        : { result: 'ok', detail: '参加者の書き方に問題なし' };
+    },
+
+    // Spotify: 参加者は曲名に書かない
+    title_has_feat: function (song) {
+      var t = s(song.title);
+      if (!t) return { result: 'manual', detail: '曲名が未入力' };
+      var m = t.match(/(^|[\s\(\[])(featuring|feat\.?|ft\.?|w\/)(?=\s|$)/i);
+      return m
+        ? { result: 'ng', detail: '曲名に「' + m[2] + '」で参加者を書いている' }
+        : { result: 'ok', detail: '曲名に参加者は無い' };
+    },
+
+    // 日本語(かな・漢字・ハングル)と英字の訳を同じ欄に並べていないか(例: 雨の街 (Ame no Machi))
+    side_by_side_translation: function (song, p, rule) {
+      var fields = [['曲名', song.title], ['アーティスト名', song.artist]];
+      var checked = 0, hits = [];
+      fields.forEach(function (f) {
+        var v = s(f[1]).trim();
+        if (!v) return;
+        checked++;
+        if (sideBySide(v)) hits.push(f[0] + '「' + v + '」');
+      });
+      if (!checked) return { result: 'manual', detail: '曲名・アーティスト名が未入力' };
+      return hits.length
+        ? { result: 'ng', detail: hits.join('・') + ' に訳・読みを並べている疑い' }
+        : { result: 'ok', detail: '訳を並べた書き方は無い' };
+    },
+
+    title_extra_words: function (song, p) {
+      var t = low(song.title);
+      if (!t) return { result: 'manual', detail: '曲名が未入力' };
+      var hit = p.words.filter(function (w) { return t.indexOf(w) >= 0; });
+      return hit.length
+        ? { result: 'ng', detail: '曲名に「' + hit.join('」「') + '」がある' }
+        : { result: 'ok', detail: '余計な言葉は無い' };
+    },
+
+    title_case_en: function (song) {
+      var t = s(song.title).trim();
+      if (!t) return { result: 'manual', detail: '曲名が未入力' };
+      if (!isLatinTitle(t)) return { result: 'ok', detail: '英語の曲名ではない(対象外)' };
+      var letters = t.replace(/[^A-Za-z]/g, '');
+      if (letters.length >= 4 && letters === letters.toUpperCase()) return { result: 'ng', detail: '全部大文字' };
+      if (letters.length >= 4 && letters === letters.toLowerCase()) return { result: 'ng', detail: '全部小文字' };
+      return { result: 'ok', detail: '大文字・小文字に問題なし' };
+    },
+
+    lyrics_line_end_punct: function (song) {
+      if (!has(song.lyrics)) return { result: 'manual', detail: '歌詞が未入力(歌詞を出さないなら対象外)' };
+      var lines = s(song.lyrics).replace(/\r\n?/g, '\n').split('\n');
+      var bad = [];
+      lines.forEach(function (ln, i) {
+        var x = ln.replace(/\s+$/, '');
+        if (/[.,。、]$/.test(x) && !/(\.\.\.|…)$/.test(x)) bad.push(i + 1);
+      });
+      return bad.length
+        ? { result: 'ng', detail: bad.length + '行の終わりに句点・カンマ(' + bad.slice(0, 5).join('・') + '行目' + (bad.length > 5 ? ' ほか' : '') + ')' }
+        : { result: 'ok', detail: '行の終わりに句点・カンマは無い' };
+    },
+
+    voice_impersonation: function (song) {
+      var v = song.vocals || {};
+      if (v.sounds_like === undefined) return { result: 'manual', detail: '実在の歌手に似せたかが未回答' };
+      if (!has(v.sounds_like)) return { result: 'ok', detail: '実在の歌手に似せていない' };
+      if (v.permission === true) return { result: 'ok', detail: '似せた歌手の許可あり(' + s(v.sounds_like) + ')。許可の記録を残す' };
+      return { result: 'ng', detail: '実在の歌手(' + s(v.sounds_like) + ')に似せていて、許可が無い' };
+    },
+
+    spam_pattern: function (song) {
+      var r = song.release || {};
+      if (r.duplicate === true) return { result: 'ng', detail: '同じ曲(または少しだけ変えた曲)をすでに出している' };
+      if (r.duplicate === false) return { result: 'ok', detail: '出し直しではない(量・長さのしきい値は公式に書かれていない)' };
+      return { result: 'manual', detail: '同じ曲の出し直しかが未回答' };
+    },
+
+    ai_disclosure: function (song, p, rule) {
+      var ai = song.ai || {};
+      if (!has(ai.tool)) return { result: 'ok', detail: 'AIの道具を使っていない(入力なし)' };
+      var d = song.disclosures || {};
+      var key = rule.platform === 'youtube' ? 'youtube_altered' : 'credits_ai';
+      if (d[key] === true) return { result: 'ok', detail: 'AIを使ったことを示す予定' };
+      return { result: 'ng', detail: s(ai.tool) + ' を使っているが、示す予定になっていない' };
+    },
+
+    rights_plan: function (song) {
+      var ai = song.ai || {};
+      if (!has(ai.tool)) return { result: 'manual', detail: '使った道具が未入力。素材の権利を自分で確かめる' };
+      var plan = low(ai.plan);
+      if (plan === 'paid') return { result: 'ok', detail: s(ai.tool) + ' の有料プランで作った(商用利用の条件はその道具の規約で確かめる)' };
+      if (plan === 'free') return { result: 'ng', detail: s(ai.tool) + ' の無料プランで作った。道具によっては無料プランの曲の商用利用を認めていない' };
+      return { result: 'manual', detail: s(ai.tool) + ' のプランが未入力' };
+    }
+  };
+
+  function checkOne(rule, song) {
+    var fn = CHECKS[rule.check];
+    if (!fn) throw new Error('知らない確かめ方: ' + rule.check + '(' + rule.id + ')');
+    if (rule.status === 'unverified') {
+      return { result: 'unverified', detail: '公式の案内で確かめられていない決まり' };
+    }
+    return fn(song, rule.params || {}, rule);
+  }
+
+  function check(rules, song) {
+    if (!rules || !rules.rules) throw new Error('rules.json の形ではない');
+    song = song || {};
+    var chosen = Array.isArray(song.platforms) && song.platforms.length ? song.platforms : Object.keys(rules.platforms);
+    var unknown = chosen.filter(function (k) { return !rules.platforms[k]; });
+    if (unknown.length) throw new Error('知らない配信先: ' + unknown.join(', '));
+    var out = { version: rules.version, rules_updated: rules.updated, note: rules.note, platforms: [] };
+    chosen.forEach(function (pk) {
+      var items = [];
+      rules.rules.filter(function (r) { return r.platform === pk; }).forEach(function (r) {
+        var res = checkOne(r, song);
+        items.push({
+          id: r.id, field: r.field, level: r.level, result: res.result, detail: res.detail,
+          rule: r.rule, fix: res.result === 'ng' ? r.fix : '', source: r.source,
+          section: r.section || '', checked: r.checked, basis: r.basis || ''
+        });
+      });
+      var ng = items.filter(function (i) { return i.result === 'ng'; });
+      var verdict = ng.some(function (i) { return i.level === 'block'; }) ? 'block'
+        : ng.some(function (i) { return i.level === 'warn'; }) ? 'warn' : 'ok';
+      out.platforms.push({
+        key: pk, name: rules.platforms[pk].name, verdict: verdict, verdict_ja: VERDICT[verdict],
+        counts: {
+          block: ng.filter(function (i) { return i.level === 'block'; }).length,
+          warn: ng.filter(function (i) { return i.level === 'warn'; }).length,
+          info: ng.filter(function (i) { return i.level === 'info'; }).length,
+          manual: items.filter(function (i) { return i.result === 'manual'; }).length,
+          unverified: items.filter(function (i) { return i.result === 'unverified'; }).length
+        },
+        items: items
+      });
+    });
+    return out;
+  }
+
+  // ---- 登録情報の整え ----
+  function toHalfAscii(t) {
+    return t.replace(/[\uff01-\uff5e]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xfee0); });
+  }
+
+  function tidyTitle(title) {
+    var t = s(title), changes = [];
+    var t2 = toHalfAscii(t);
+    if (t2 !== t) changes.push('全角の英数字・記号を半角にした');
+    t = t2;
+    t2 = t.replace(/\u3000/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    if (t2 !== t) changes.push('余分な空白を消した');
+    t = t2;
+    // [feat. X] / (Feat. X) / feat X / ft. X / featuring X / w/ X → (feat. X)
+    var re = /\s*[\(\[]?\s*(?:featuring|feat\.?|ft\.?|w\/)\s+([^\)\]]+?)\s*[\)\]]?\s*$/i;
+    var m = t.match(re);
+    if (m) {
+      t2 = t.slice(0, m.index).trim() + ' (feat. ' + m[1].trim() + ')';
+      if (t2 !== t) changes.push('参加者の表記を「(feat. 名前)」にした');
+      t = t2;
+    }
+    return { value: t, changes: changes };
+  }
+
+  function tidyLyrics(lyrics) {
+    var changes = [];
+    var lines = s(lyrics).replace(/\r\n?/g, '\n').split('\n');
+    var punct = 0, trail = 0;
+    lines = lines.map(function (ln) {
+      var x = ln.replace(/[ \t\u3000]+$/, '');
+      if (x !== ln) trail++;
+      if (/[.,。、]$/.test(x) && !/(\.\.\.|…)$/.test(x)) { x = x.slice(0, -1); punct++; }
+      return x;
+    });
+    var text = lines.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+    if (punct) changes.push(punct + '行の終わりの句点・カンマを消した');
+    if (trail) changes.push(trail + '行の終わりの空白を消した');
+    if (text !== lines.join('\n')) changes.push('続いた空行を1つにまとめた');
+    return { value: text, changes: changes };
+  }
+
+  function artworkAdvice(rules, song) {
+    var art = song.artwork || {}, need = 0, formats = null;
+    rules.rules.forEach(function (r) {
+      if (r.check === 'artwork_size' && (!song.platforms || !song.platforms.length || song.platforms.indexOf(r.platform) >= 0)) {
+        need = Math.max(need, r.params.min_px);
+        formats = r.params.formats;
+      }
+    });
+    if (!need) return { value: '', changes: [] };
+    var ok = art.width >= need && art.height >= need && art.width === art.height;
+    return {
+      value: need + '×' + need + 'px の正方形' + (formats ? '(' + formats.join('/').toUpperCase() + ')' : ''),
+      changes: ok ? [] : ['ジャケットを ' + need + '×' + need + 'px の正方形で書き出し直す']
+    };
+  }
+
+  function tidy(song, rules) {
+    song = song || {};
+    var out = { title: tidyTitle(song.title), lyrics: tidyLyrics(song.lyrics) };
+    var plats = Array.isArray(song.platforms) && song.platforms.length ? song.platforms : null;
+    if (/\(feat\. /.test(out.title.value) && (!plats || plats.indexOf('spotify') >= 0)) {
+      out.title.notes = ['Spotify では曲名に参加者を書かず、配信会社の参加者の欄に入れる(Apple Music は「(feat. 名前)」)'];
+    }
+    if (rules) out.artwork = artworkAdvice(rules, song);
+    return out;
+  }
+
+  // ---- 制作記録(指摘されたときにそのまま出せる1枚) ----
+  function productionRecord(song, report, today) {
+    song = song || {};
+    var ai = song.ai || {};
+    var L = [];
+    L.push('制作記録 / Production record');
+    L.push('作成日: ' + s(today));
+    L.push('');
+    L.push('曲名: ' + s(song.title));
+    L.push('アーティスト名: ' + s(song.artist));
+    if ((song.featuring || []).length) L.push('参加: ' + song.featuring.join(', '));
+    L.push('');
+    L.push('[使ったAI]');
+    L.push('道具: ' + (s(ai.tool) || '(なし)'));
+    L.push('版: ' + (s(ai.version) || '(未記入)'));
+    L.push('プラン: ' + ({ paid: '有料', free: '無料' }[low(ai.plan)] || '(未記入)'));
+    L.push('作った日: ' + (s(ai.created) || '(未記入)'));
+    L.push('');
+    L.push('[自分がしたこと]');
+    var hw = song.human_work || [];
+    if (hw.length) hw.forEach(function (w) { L.push('- ' + w); }); else L.push('- (未記入)');
+    if (has(song.prompt)) { L.push(''); L.push('[AIへの指示(プロンプト)]'); L.push(s(song.prompt)); }
+    if (has(song.lyrics)) { L.push(''); L.push('[歌詞]'); L.push(s(song.lyrics)); }
+    if (report) {
+      L.push('');
+      L.push('[配信前のチェック(決まりの表 ' + s(report.version) + '・' + s(report.rules_updated) + ' 更新)]');
+      report.platforms.forEach(function (p) { L.push('- ' + p.name + ': ' + p.verdict_ja); });
+    }
+    L.push('');
+    L.push('この記録は本人の申告をまとめたもの。チェックは確認の手助けで、法律の助言ではない。最終判断は各配信先の案内で。');
+    return L.join('\n');
+  }
+
+  return { check: check, tidy: tidy, tidyTitle: tidyTitle, tidyLyrics: tidyLyrics, productionRecord: productionRecord, CHECKS: CHECKS, VERDICT: VERDICT };
+});
+</script>
+<script>/*
+ * AIリリースチェック — 無料の回数(1か月3曲まで)。数えるのはこの端末の中だけ(外に送らない)。
+ * 同じ曲(曲名+アーティスト名)を何度確かめても1曲と数える。
+ * 端末の保存が使えない(プライベートモードなど)ときは数えずに使える。
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.AIReleaseQuota = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  var LIMIT = 3;
+  var KEY = 'ai-release-check.quota.v1';
+
+  function month(d) {
+    d = d || new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  }
+  function songKey(song) {
+    var t = String((song && song.title) || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    var a = String((song && song.artist) || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return t + '\u0000' + a;
+  }
+  function fresh(state, m) {
+    if (!state || state.month !== m || !Array.isArray(state.songs)) return { month: m, songs: [] };
+    return { month: m, songs: state.songs.slice() };
+  }
+  // 純粋な判定: { allowed, used, left, state(新しい) }
+  function use(state, song, m, limit) {
+    limit = limit || LIMIT;
+    var st = fresh(state, m), k = songKey(song);
+    if (st.songs.indexOf(k) >= 0) return { allowed: true, used: st.songs.length, left: limit - st.songs.length, state: st, counted: false };
+    if (st.songs.length >= limit) return { allowed: false, used: st.songs.length, left: 0, state: st, counted: false };
+    st.songs.push(k);
+    return { allowed: true, used: st.songs.length, left: limit - st.songs.length, state: st, counted: true };
+  }
+  function peek(state, m, limit) {
+    limit = limit || LIMIT;
+    var st = fresh(state, m);
+    return { used: st.songs.length, left: Math.max(0, limit - st.songs.length) };
+  }
+  // ブラウザの保存(使えなければ null)
+  function load(storage) {
+    try { var v = storage.getItem(KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+  }
+  function save(storage, state) {
+    try { storage.setItem(KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
+  }
+  return { LIMIT: LIMIT, KEY: KEY, month: month, songKey: songKey, use: use, peek: peek, load: load, save: save };
+});
+</script>
+<script>/*
+ * AIリリースチェック — SNS の投稿文の型(日本語・英語)。
+ * AIの利用料はかからない(決まった型に差し込むだけ)。外に何も送らない。
+ * AIを使ったことは隠さずに書く(YouTube の申告・各配信先の案内に合わせる)。
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.AIReleaseSNS = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  function s(v) { return (v === undefined || v === null) ? '' : String(v).trim(); }
+  var WORK_EN = { '作詞': 'lyrics', '作曲': 'composition', '編曲': 'arrangement', '編曲の手直し': 'arrangement edits',
+    '歌': 'vocals', '演奏': 'performance', 'ミックス': 'mixing', 'マスタリング': 'mastering', 'ジャケット': 'artwork' };
+
+  function tag(t) { return '#' + s(t).replace(/[\s#.\-]+/g, ''); }
+  function uniq(a) { var o = []; a.forEach(function (x) { if (x && o.indexOf(x) < 0) o.push(x); }); return o; }
+
+  function aiLine(song, lang) {
+    var ai = song.ai || {}, tool = s(ai.tool);
+    var work = (song.human_work || []).map(s).filter(Boolean);
+    if (!tool) return '';
+    var ver = s(ai.version);
+    if (lang === 'en') {
+      var w = work.map(function (x) { return WORK_EN[x] || x; });
+      return 'Made with AI (' + tool + (ver ? ' ' + ver : '') + ')' + (w.length ? '. My part: ' + w.join(', ') : '') + '.';
+    }
+    return 'この曲はAI(' + tool + (ver ? ' ' + ver : '') + ')を使って作りました' + (work.length ? '。自分の担当: ' + work.join('・') : '') + '。';
+  }
+
+  function posts(song, lang, opts) {
+    song = song || {}; opts = opts || {};
+    lang = lang === 'en' ? 'en' : 'ja';
+    var title = s(song.title), artist = s(song.artist), link = s(opts.link);
+    var feat = (song.featuring || []).map(s).filter(Boolean);
+    var genre = s(opts.genre);
+    var full = title + (feat.length ? ' (feat. ' + feat.join(', ') + ')' : '');
+    var ai = aiLine(song, lang);
+    var tags = uniq([artist && tag(artist), genre && tag(genre),
+      lang === 'en' ? '#NewMusic' : '#新曲', lang === 'en' ? '#AIMusic' : '#AI音楽',
+      s((song.ai || {}).tool) && tag(s(song.ai.tool))]);
+    var L = lang === 'en'
+      ? { out: 'Out now', listen: 'Listen', yt: artist + ' - ' + full, lyr: 'Lyrics' }
+      : { out: '配信開始', listen: '聴く', yt: artist + '「' + full + '」', lyr: '歌詞' };
+
+    var desc = [];
+    desc.push(lang === 'en' ? artist + ' - ' + full : artist + '「' + full + '」');
+    if (link) desc.push(L.listen + ': ' + link);
+    if (ai) { desc.push(''); desc.push(ai); }
+    if (s(opts.lyrics_in_description) && s(song.lyrics)) { desc.push(''); desc.push('[' + L.lyr + ']'); desc.push(s(song.lyrics)); }
+    desc.push(''); desc.push(tags.join(' '));
+
+    var x = [L.out + (lang === 'en' ? ': ' : '') + (lang === 'en' ? full : '「' + full + '」') + (lang === 'en' ? ' by ' + artist : ' / ' + artist)];
+    if (ai) x.push(ai);
+    if (link) x.push(link);
+    x.push(tags.slice(0, 4).join(' '));
+
+    var tiktok = [(lang === 'en' ? full + ' / ' + artist : '「' + full + '」' + artist), ai, tags.join(' ')].filter(Boolean);
+
+    return {
+      lang: lang,
+      youtube_title: L.yt,
+      youtube_description: desc.join('\n'),
+      youtube_tags: tags.map(function (t) { return t.slice(1); }),
+      x: x.join('\n'),
+      tiktok: tiktok.join('\n')
+    };
+  }
+  return { posts: posts, aiLine: aiLine };
+});
+</script>
+<script>
+(function(){
+'use strict';
+var RULES = window.AIRC_RULES, RC = window.AIReleaseCheck, Q = window.AIReleaseQuota, SNS = window.AIReleaseSNS;
+var $ = function(id){ return document.getElementById(id); };
+var art = {}, lastSong = null, lang = 'ja';
+var store = null; try { store = window.localStorage; } catch (e) { store = null; }
+
+function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function today(){ var d = new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+
+$('rulesver').textContent = RULES.version + '(' + RULES.updated + ' 更新)';
+Object.keys(RULES.platforms).forEach(function(k){
+  var l = document.createElement('label');
+  l.innerHTML = '<input type="checkbox" value="'+esc(k)+'" checked>' + esc(RULES.platforms[k].name);
+  $('plats').appendChild(l);
+});
+function showQuota(){
+  if (!store) { $('quota').textContent = 'この端末では回数を数えられないため、そのまま使えます。'; return; }
+  var p = Q.peek(Q.load(store), Q.month());
+  $('quota').textContent = '今月の無料の残り: ' + p.left + '曲(同じ曲は何度でも)';
+}
+showQuota();
+
+$('art').addEventListener('change', function(){
+  var f = this.files && this.files[0]; art = {};
+  if (!f) { $('artinfo').textContent = ''; return; }
+  var fmt = (f.type.split('/')[1] || '').replace('jpeg','jpg');
+  var url = URL.createObjectURL(f), img = new Image();
+  img.onload = function(){ art = { width: img.naturalWidth, height: img.naturalHeight, format: fmt }; $('artinfo').textContent = art.width + '×' + art.height + 'px・' + fmt; URL.revokeObjectURL(url); };
+  img.onerror = function(){ $('artinfo').textContent = '画像を読めませんでした'; URL.revokeObjectURL(url); };
+  img.src = url;
+});
+
+function vals(id){ return Array.prototype.map.call(document.querySelectorAll('#'+id+' input:checked'), function(i){ return i.value; }); }
+function readSong(){
+  var kinds = vals('artkinds');
+  var a = { width: art.width, height: art.height, format: art.format };
+  if (kinds.length || $('artnone').checked) a.text_kinds = kinds;
+  var dup = $('dup').value;
+  return {
+    title: $('title').value.trim(), artist: $('artist').value.trim(),
+    featuring: $('featuring').value.split(/[,、]/).map(function(x){ return x.trim(); }).filter(Boolean),
+    ai: { tool: $('tool').value.trim(), version: $('version').value.trim(), plan: $('plan').value, created: $('created').value },
+    human_work: vals('work'), prompt: $('prompt').value, lyrics: $('lyrics').value,
+    artwork: a,
+    vocals: $('sounds').value.trim() || $('permission').checked ? { sounds_like: $('sounds').value.trim(), permission: $('permission').checked } : { sounds_like: '' },
+    release: dup ? { duplicate: dup === 'yes' } : {},
+    disclosures: { youtube_altered: $('ytaltered').checked, credits_ai: $('credits').checked },
+    platforms: vals('plats')
+  };
+}
+var RES = { ok: '合っている', ng: '直す', manual: '目で確かめる', unverified: '未確認' };
+function render(song){
+  var rep = RC.check(RULES, song), h = '';
+  rep.platforms.forEach(function(p){
+    h += '<div class="card"><div><strong>'+esc(p.name)+'</strong> <span class="verdict v-'+p.verdict+'">'+esc(p.verdict_ja)+'</span>'+(p.verdict==='ok'&&p.counts.info?' <span class="src">直すと良い所 '+p.counts.info+'</span>':'')+(p.counts.manual?' <span class="src">目で確かめる '+p.counts.manual+'</span>':'')+'</div>';
+    p.items.slice().sort(function(a,b){ var o={ng:0,manual:1,unverified:2,ok:3}; return o[a.result]-o[b.result]; }).forEach(function(i){
+      h += '<div class="item r-'+i.result+'"><b>'+RES[i.result]+'</b> '+esc(i.rule)+'<div>'+esc(i.detail)+'</div>';
+      if (i.fix) h += '<div class="fix">直し方: '+esc(i.fix)+'</div>';
+      if (i.basis) h += '<div class="src">'+esc(i.basis)+'</div>';
+      h += '<div class="src">出典: <a href="'+esc(i.source)+'" target="_blank" rel="noopener noreferrer">'+esc(i.source)+'</a> '+esc(i.section)+'(確かめた日 '+esc(i.checked)+')</div></div>';
+    });
+    h += '</div>';
+  });
+  $('verdicts').innerHTML = h;
+  var t = RC.tidy(song, RULES), th = '';
+  [['曲名', t.title], ['歌詞', t.lyrics], ['ジャケット', t.artwork]].forEach(function(x){
+    if (!x[1]) return;
+    th += '<div class="item"><b>'+x[0]+'</b> '+(x[1].changes.length ? esc(x[1].changes.join('・')) : '直すところはありません');
+    if (x[1].changes.length && x[1].value) th += '<pre>'+esc(x[1].value)+'</pre>';
+    (x[1].notes || []).forEach(function(n){ th += '<div class="fix">'+esc(n)+'</div>'; });
+    th += '</div>';
+  });
+  $('tidy').innerHTML = th;
+  $('record').textContent = RC.productionRecord(song, rep, today());
+  renderSNS();
+  $('out').hidden = false;
+  $('out').scrollIntoView({ behavior: 'smooth' });
+}
+function renderSNS(){
+  if (!lastSong) return;
+  var p = SNS.posts(lastSong, lang, { link: $('link').value.trim() }), h = '';
+  [['YouTube の題名', p.youtube_title], ['YouTube の説明文', p.youtube_description], ['YouTube のタグ', p.youtube_tags.join(', ')], ['X', p.x], ['TikTok', p.tiktok]].forEach(function(x){
+    h += '<label>'+x[0]+'</label><pre>'+esc(x[1])+'</pre>';
+  });
+  $('sns').innerHTML = h;
+}
+document.querySelectorAll('.tabs button').forEach(function(b){ b.addEventListener('click', function(){ lang = b.getAttribute('data-lang'); renderSNS(); }); });
+$('link').addEventListener('input', renderSNS);
+$('copyrec').addEventListener('click', function(){ try { navigator.clipboard.writeText($('record').textContent); this.textContent = '写しました'; } catch (e) {} });
+$('saverec').addEventListener('click', function(){
+  var blob = new Blob([$('record').textContent], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '制作記録_' + (lastSong.title || '曲') + '.txt'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+});
+$('f').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var song = readSong();
+  if (!song.title || !song.artist) { $('quota').textContent = '曲名とアーティスト名を入れてください。'; return; }
+  if (!song.platforms.length) { $('quota').textContent = '配信先を1つ以上選んでください。'; return; }
+  if (store) {
+    var u = Q.use(Q.load(store), song, Q.month());
+    if (!u.allowed) { $('out').hidden = true; $('quota').textContent = '今月の無料の3曲を使い切りました。来月また使えます(同じ曲はもう一度確かめられます)。'; return; }
+    Q.save(store, u.state);
+  }
+  lastSong = song;
+  showQuota();
+  render(song);
+});
+})();
+</script>
+</body>
+</html>
