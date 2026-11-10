@@ -1,0 +1,10 @@
+# AI Release Check
+
+> Browser-only pre-release checker for AI-made songs: checks title, artist, featured artists, lyrics, artwork and AI disclosure against the published rules of Apple Music, Spotify, YouTube, TuneCore Japan and DistroKid (23 rules, each with official source URL, section and date checked), tidies the metadata and writes a production record. Japanese UI. No network, no storage of inputs, MIT. Unofficial, not affiliated with any platform. Not legal advice.
+
+- rules.json: rules(id, platform, field, level block/warn/info, status verified/unverified, check, rule, fix, source, section, checked)
+- check.js: check(rules, song) -> per-platform verdict ok/warn/block with items; tidy(song, rules); productionRecord(song, report, date). Works in browser and node
+- quota.js: free tier counter (3 songs/month, counted only on the device)
+- sns.js: YouTube/X/TikTok post templates (ja/en) that state AI use
+- index.html: single-file page (built by build_page.py from page/index.html)
+- Limits: does not analyze audio; rules not confirmed in official docs are shown as "unverified", never as rejected; no numeric spam thresholds
