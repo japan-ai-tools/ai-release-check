@@ -190,3 +190,39 @@ test('訳の横並びは末尾の feat.・(Live) があっても見つける(202
   for (const t of ['雨の街 feat. Rin', '雨の街 (feat. Rin) (Live)', 'Rain City (Live) [Radio Edit]'])
     assert.equal(item(RC.check(rules, { ...good, title: t }), 'apple.meta.no_side_by_side').result, 'ok', t);
 });
+
+test('JASRAC は選んだときだけ確かめる(配信先の既定には入れない)', () => {
+  const rep = RC.check(rules, good);
+  assert.ok(!plat(rep, 'jasrac'));
+});
+
+test('JASRAC: 歌詞も曲もAIの自律生成 → 管理されない(断られる)', () => {
+  const rep = RC.check(rules, { ...good, platforms: ['jasrac'], authorship: { lyrics: 'ai', music: 'ai' } });
+  assert.equal(item(rep, 'jasrac.ai.autonomous').result, 'ng');
+  assert.equal(plat(rep, 'jasrac').verdict, 'block');
+});
+
+test('JASRAC: 詞は人・曲はAI → 作品届に「作曲:AI 自律生成」・管理率は公式の表どおり', () => {
+  const rep = RC.check(rules, { ...good, platforms: ['jasrac'], authorship: { lyrics: 'human', music: 'ai' } });
+  const i = item(rep, 'jasrac.ai.partial');
+  assert.equal(i.result, 'ng');
+  assert.ok(i.detail.includes('作曲:AI 自律生成'));
+  assert.ok(i.detail.includes('曲だけ使用0%') && i.detail.includes('詞曲50%') && i.detail.includes('詞だけ使用100%'));
+  assert.equal(plat(rep, 'jasrac').verdict, 'ok');
+});
+
+test('JASRAC: AIを使い自分がしたことが未記入 → 保証の備えが無い(危ない)', () => {
+  const rep = RC.check(rules, { ...good, human_work: [], platforms: ['jasrac'], authorship: { lyrics: 'human', music: 'human' } });
+  assert.equal(item(rep, 'jasrac.ai.guarantee').result, 'ng');
+  assert.equal(plat(rep, 'jasrac').verdict, 'warn');
+});
+
+test('JASRAC: 未回答なら目で確かめる', () => {
+  const rep = RC.check(rules, { ...good, platforms: ['jasrac'] });
+  assert.equal(item(rep, 'jasrac.ai.autonomous').result, 'manual');
+});
+
+test('制作記録に作詞・作曲の担当が入る', () => {
+  const txt = RC.productionRecord({ ...good, authorship: { lyrics: 'human', music: 'ai' } }, null, '2026-11-11');
+  assert.ok(txt.includes('作詞: 人') && txt.includes('作曲: AI 自律生成'));
+});
