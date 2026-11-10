@@ -12,6 +12,7 @@ OFFICIAL = {
     "youtube": ("support.google.com", "blog.youtube"),
     "tunecore_japan": ("www.tunecore.co.jp", "support.tunecore.co.jp"),
     "distrokid": ("distrokid.com", "support.distrokid.com"),
+    "jasrac": ("www.jasrac.or.jp",),
 }
 
 
@@ -20,7 +21,7 @@ class RulesTest(unittest.TestCase):
     def setUpClass(cls):
         cls.d = json.loads(RULES.read_text(encoding="utf-8"))
 
-    def test_five_platforms(self):
+    def test_platforms(self):
         self.assertEqual(set(self.d["platforms"]), set(OFFICIAL))
 
     def test_every_platform_has_a_rule(self):
@@ -56,6 +57,12 @@ class RulesTest(unittest.TestCase):
 
     def test_disclaimer(self):
         self.assertIn("法律の助言ではない", self.d["note"])
+
+    def test_jasrac_shares_match_guideline(self):
+        r = [x for x in self.d["rules"] if x["id"] == "jasrac.ai.partial"][0]
+        self.assertEqual(r["params"]["lyrics_ai"], {"music_only": 100, "both": 50, "lyrics_only": 0})
+        self.assertEqual(r["params"]["music_ai"], {"music_only": 0, "both": 50, "lyrics_only": 100})
+        self.assertEqual(self.d["platforms"]["jasrac"]["kind"], "rights")
 
     def test_artwork_size_rule(self):
         r = [x for x in self.d["rules"] if x["id"] == "tunecore.art.spec"][0]
