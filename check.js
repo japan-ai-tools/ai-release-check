@@ -70,6 +70,16 @@
   }
 
   // ---- 1つずつの確かめ。戻り値: {result:'ok'|'ng'|'manual', detail} ----
+  // 入力から YouTube の contains_ai の値を考える(公式の例: 指示だけで作った曲=all、一部をAI=partly、自動の音程補正・マスタリングだけ=none)
+  function genaiMusicValue(song) {
+    var a = song.authorship || {};
+    var usedTool = has((song.ai || {}).tool);
+    if (!usedTool && a.lyrics !== 'ai' && a.music !== 'ai') return 'none';
+    if (a.lyrics === 'ai' && a.music === 'ai') return 'all';
+    if (usedTool && !(song.human_work || []).length && a.lyrics !== 'human' && a.music !== 'human') return 'all';
+    return 'partly';
+  }
+
   var CHECKS = {
     manual: function () { return { result: 'manual', detail: '自動では確かめられない。下の決まりを目で確かめる' }; },
 
@@ -250,6 +260,52 @@
       return { result: 'ng', detail: 'AIを使っていて、自分がしたことが未記入。資料を求められたときに出せない' };
     },
 
+    // YouTube 音楽の生成AIの申告(contains_ai)。入力から勧める値を出し、申告の予定と比べる
+    genai_music_declaration: function (song) {
+      var want = genaiMusicValue(song);
+      var d = song.disclosures || {};
+      var got = low(d.youtube_music_contains_ai);
+      var JA = { all: 'すべて生成AI', partly: '一部生成AI', none: '生成AIなし' };
+      if (got === want) return { result: 'ok', detail: 'contains_ai=' + want + '(' + JA[want] + ')と申告する予定' };
+      if (!got || got === 'unknown') return { result: 'ng', detail: '申告が未定。入力からは contains_ai=' + want + '(' + JA[want] + ')。申告が無いと YouTube がほかの手がかりで決めることがある' };
+      return { result: 'ng', detail: '申告の予定 contains_ai=' + got + ' と、入力から考えた ' + want + '(' + JA[want] + ')が違う。見直す' };
+    },
+
+    prompt_record: function (song) {
+      if (!has((song.ai || {}).tool)) return { result: 'ok', detail: 'AIの道具を使っていない(入力なし)' };
+      if (has(song.prompt)) return { result: 'ok', detail: 'AIへの指示(プロンプト)を制作記録に残せる' };
+      return { result: 'ng', detail: 'AIを使っていて、AIへの指示(プロンプト)が未記入。作り方を後で説明できない' };
+    },
+
+    similarity_check: function (song) {
+      if (!has((song.ai || {}).tool)) return { result: 'ok', detail: 'AIの道具を使っていない(入力なし)' };
+      var r = song.release || {};
+      if (r.similarity_checked === true) return { result: 'ok', detail: '出す前に既存の曲と似ていないか確かめた' };
+      if (r.similarity_checked === false) return { result: 'ng', detail: '既存の曲と似ていないかを、まだ確かめていない' };
+      return { result: 'manual', detail: '既存の曲と似ていないかを確かめたかが未回答' };
+    },
+
+    // 経産省のガイドブック: 使う生成AIの利用規約・仕様を確かめたか
+    tool_terms: function (song) {
+      var ai = song.ai || {};
+      if (!has(ai.tool)) return { result: 'ok', detail: 'AIの道具を使っていない(入力なし)' };
+      if (ai.terms_checked === true) return { result: 'ok', detail: s(ai.tool) + ' の利用規約(商用利用・配信の条件)を確かめた' };
+      return { result: 'ng', detail: s(ai.tool) + ' の利用規約を確かめたかが未記入。商用利用・配信の条件を確かめる' };
+    },
+
+    // 経産省のガイドブック: プロンプトに実在の人物・作品を指す語が無いか(見つけられる形だけ探す)
+    prompt_named_refs: function (song, p) {
+      if (!has((song.ai || {}).tool)) return { result: 'ok', detail: 'AIの道具を使っていない(入力なし)' };
+      var pr = low(song.prompt);
+      if (!pr) return { result: 'manual', detail: 'プロンプトが未記入。実在の歌手名・曲名を入れていないか目で確かめる' };
+      var hits = [];
+      var who = low((song.vocals || {}).sounds_like);
+      if (who && pr.indexOf(who) >= 0) hits.push(s((song.vocals || {}).sounds_like));
+      ((p && p.patterns) || []).forEach(function (w) { if (pr.indexOf(low(w)) >= 0 && hits.indexOf(w) < 0) hits.push(w); });
+      if (hits.length) return { result: 'ng', detail: 'プロンプトに「' + hits.join('」「') + '」がある。実在の人物・作品を指していないか見直す' };
+      return { result: 'manual', detail: '「〜風に」などの指定は見つからない。実在の歌手名・曲名が入っていないか目で確かめる' };
+    },
+
     rights_plan: function (song) {
       var ai = song.ai || {};
       if (!has(ai.tool)) return { result: 'manual', detail: '使った道具が未入力。素材の権利を自分で確かめる' };
@@ -269,11 +325,14 @@
     return fn(song, rule.params || {}, rule);
   }
 
+  // 届け出先(rights)と国の手引き(guide)は、選んだときだけ確かめる
+  var OPTIONAL_KINDS = ['rights', 'guide'];
+
   function check(rules, song) {
     if (!rules || !rules.rules) throw new Error('rules.json の形ではない');
     song = song || {};
     var chosen = Array.isArray(song.platforms) && song.platforms.length ? song.platforms
-      : Object.keys(rules.platforms).filter(function (k) { return rules.platforms[k].kind !== 'rights'; });
+      : Object.keys(rules.platforms).filter(function (k) { return OPTIONAL_KINDS.indexOf(rules.platforms[k].kind) < 0; });
     var unknown = chosen.filter(function (k) { return !rules.platforms[k]; });
     if (unknown.length) throw new Error('知らない配信先: ' + unknown.join(', '));
     var out = { version: rules.version, rules_updated: rules.updated, note: rules.note, platforms: [] };
@@ -390,6 +449,7 @@
     L.push('版: ' + (s(ai.version) || '(未記入)'));
     L.push('プラン: ' + ({ paid: '有料', free: '無料' }[low(ai.plan)] || '(未記入)'));
     L.push('作った日: ' + (s(ai.created) || '(未記入)'));
+    if (has(ai.tool)) L.push('利用規約の確認: ' + (ai.terms_checked === true ? '確かめた' : '(未記入)'));
     L.push('');
     var au = song.authorship || {};
     var WHO = { human: '人', ai: 'AI 自律生成' };
@@ -397,6 +457,10 @@
       L.push('[作詞・作曲]');
       L.push('作詞: ' + (WHO[au.lyrics] || '(未回答)'));
       L.push('作曲: ' + (WHO[au.music] || '(未回答)'));
+      L.push('');
+    }
+    if (has(ai.tool) || au.lyrics === 'ai' || au.music === 'ai') {
+      L.push('YouTube 音楽の生成AIの申告(contains_ai)の目安: ' + genaiMusicValue(song));
       L.push('');
     }
     L.push('[自分がしたこと]');
@@ -414,5 +478,5 @@
     return L.join('\n');
   }
 
-  return { check: check, tidy: tidy, tidyTitle: tidyTitle, tidyLyrics: tidyLyrics, productionRecord: productionRecord, CHECKS: CHECKS, VERDICT: VERDICT };
+  return { check: check, tidy: tidy, tidyTitle: tidyTitle, tidyLyrics: tidyLyrics, productionRecord: productionRecord, genaiMusicValue: genaiMusicValue, CHECKS: CHECKS, VERDICT: VERDICT };
 });
