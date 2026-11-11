@@ -249,3 +249,76 @@ test('NexTone: AIを使っていなければ問い合わせは要らない', () 
   const rep = RC.check(rules, { ...good, ai: {}, human_work: [], platforms: ['nextone'], authorship: { lyrics: 'human', music: 'human' } });
   assert.equal(item(rep, 'nextone.ai_policy').result, 'ok');
 });
+
+test('YouTube 音楽の生成AIの申告: 作詞を人がしたら partly を勧める。未定なら確認(info)で、判定は変えない', () => {
+  const rep = RC.check(rules, { ...good, platforms: ['youtube'] });
+  const i = item(rep, 'youtube.music.genai_declare');
+  assert.equal(i.result, 'ng');
+  assert.equal(i.level, 'info');
+  assert.ok(i.detail.includes('partly'));
+  assert.equal(plat(rep, 'youtube').verdict, 'ok');
+});
+
+test('YouTube 音楽の生成AIの申告: 予定が合えば ok・違えば見直し', () => {
+  const ok = RC.check(rules, { ...good, platforms: ['youtube'], disclosures: { ...good.disclosures, youtube_music_contains_ai: 'partly' } });
+  assert.equal(item(ok, 'youtube.music.genai_declare').result, 'ok');
+  const bad = RC.check(rules, { ...good, platforms: ['youtube'], disclosures: { ...good.disclosures, youtube_music_contains_ai: 'none' } });
+  assert.ok(item(bad, 'youtube.music.genai_declare').detail.includes('違う'));
+});
+
+test('contains_ai の目安: 指示だけ=all・一部=partly・AIなし=none', () => {
+  assert.equal(RC.genaiMusicValue({ ai: { tool: 'Suno' }, human_work: [] }), 'all');
+  assert.equal(RC.genaiMusicValue({ ai: { tool: 'Suno' }, authorship: { lyrics: 'ai', music: 'ai' }, human_work: ['曲名'] }), 'all');
+  assert.equal(RC.genaiMusicValue({ ai: { tool: 'Suno' }, human_work: ['作詞'] }), 'partly');
+  assert.equal(RC.genaiMusicValue({ ai: {}, human_work: [] }), 'none');
+});
+
+test('文化庁の手引きは選んだときだけ確かめる', () => {
+  assert.ok(!plat(RC.check(rules, good), 'bunka_jp'));
+});
+
+test('文化庁の手引き: プロンプトが未記入・似ていないかの確認が無い → 危ない', () => {
+  const rep = RC.check(rules, { ...good, platforms: ['bunka_jp'], prompt: '', release: { duplicate: false, similarity_checked: false } });
+  assert.equal(item(rep, 'bunka.record.prompt').result, 'ng');
+  assert.equal(item(rep, 'bunka.similarity').result, 'ng');
+  assert.equal(plat(rep, 'bunka_jp').verdict, 'warn');
+  const ok = RC.check(rules, { ...good, platforms: ['bunka_jp'], prompt: 'rainy city pop, female vocal', release: { duplicate: false, similarity_checked: true } });
+  assert.equal(plat(ok, 'bunka_jp').verdict, 'ok');
+});
+
+test('制作記録に contains_ai の目安が入る', () => {
+  const txt = RC.productionRecord(good, null, '2026-11-11');
+  assert.ok(txt.includes('contains_ai)の目安: partly'));
+});
+
+test('経産省のガイドブックは選んだときだけ確かめる', () => {
+  assert.ok(!plat(RC.check(rules, good), 'meti_jp'));
+});
+
+test('経産省のガイドブック: 規約の確認なし・プロンプトに「〜風に」・似せた声 → 危ない', () => {
+  const rep = RC.check(rules, { ...good, platforms: ['meti_jp'], prompt: '米津玄師風に雨の歌', vocals: { sounds_like: '米津玄師', permission: false }, release: { duplicate: false, similarity_checked: false } });
+  assert.equal(item(rep, 'meti.tool.terms').result, 'ng');
+  assert.equal(item(rep, 'meti.prompt.no_names').result, 'ng');
+  assert.ok(item(rep, 'meti.prompt.no_names').detail.includes('米津玄師'));
+  assert.equal(item(rep, 'meti.voice.publicity').result, 'ng');
+  assert.equal(item(rep, 'meti.similarity.search').result, 'ng');
+  assert.equal(plat(rep, 'meti_jp').verdict, 'warn');
+});
+
+test('経産省のガイドブック: そろえば ok・名前が見つからないときは「目で確かめる」(合っているとは言わない)', () => {
+  const song = { ...good, platforms: ['meti_jp'], ai: { ...good.ai, terms_checked: true }, prompt: 'rainy city pop, female vocal', release: { duplicate: false, similarity_checked: true } };
+  const rep = RC.check(rules, song);
+  assert.equal(plat(rep, 'meti_jp').verdict, 'ok');
+  assert.equal(item(rep, 'meti.prompt.no_names').result, 'manual');
+  assert.equal(item(rep, 'meti.tool.terms').result, 'ok');
+});
+
+test('AIを使っていなければ経産省の項目は ok', () => {
+  const rep = RC.check(rules, { ...good, ai: {}, platforms: ['meti_jp'] });
+  for (const id of ['meti.tool.terms', 'meti.prompt.no_names', 'meti.similarity.search']) assert.equal(item(rep, id).result, 'ok', id);
+});
+
+test('制作記録に利用規約の確認が入る', () => {
+  assert.ok(RC.productionRecord({ ...good, ai: { ...good.ai, terms_checked: true } }, null, '2026-11-11').includes('利用規約の確認: 確かめた'));
+  assert.ok(RC.productionRecord(good, null, '2026-11-11').includes('利用規約の確認: (未記入)'));
+});
