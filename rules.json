@@ -1,5 +1,5 @@
 {
- "version": "0.4.0",
+ "version": "0.6.0",
  "updated": "2026-11-11",
  "note": "配信先の公式の案内から読み取った決まりだけを載せる。公式で確かめられなかった項目は status=unverified とし、チェックでは「未確認」と表示する。法律の助言ではない。最終判断は各配信先の案内で。",
  "levels": {
@@ -35,6 +35,14 @@
   "nextone": {
    "name": "NexTone(作品届)",
    "kind": "rights"
+  },
+  "bunka_jp": {
+   "name": "文化庁の手引き(AIと著作権)",
+   "kind": "guide"
+  },
+  "meti_jp": {
+   "name": "経産省のガイドブック(生成AIの利活用)",
+   "kind": "guide"
   }
  },
  "rules": [
@@ -499,6 +507,111 @@
    "section": "管理委託契約約款 第7条",
    "checked": "2026-11-11",
    "basis": "約款はAIに触れていない。制作記録は保証の説明の備え"
+  },
+  {
+   "id": "youtube.music.genai_declare",
+   "platform": "youtube",
+   "field": "upload",
+   "level": "info",
+   "status": "verified",
+   "check": "genai_music_declaration",
+   "rule": "音楽のパートナーは生成AIの使用を contains_ai(all=すべて生成AI・partly=一部生成AI・none=生成AIなし)で申告する。値が無いと unknown とみなされ、YouTube がほかの手がかりだけで all か partly と決めることがある。自動の音程補正やAIのマスタリングだけなら none",
+   "fix": "配信会社の DDEX(ERN 4.3.2 以上)・CSV の contains_ai・YouTube Studio の属性の欄のどれかで、入力から出した値を申告する(配信会社経由なら、その会社の申告の欄を確かめる)",
+   "source": "https://support.google.com/youtube/answer/17124251",
+   "section": "Disclose Gen AI usage for music content",
+   "checked": "2026-11-11"
+  },
+  {
+   "id": "bunka.record.prompt",
+   "platform": "bunka_jp",
+   "field": "record",
+   "level": "warn",
+   "status": "verified",
+   "check": "prompt_record",
+   "rule": "生成に使ったプロンプトなど、作った過程を後で確かめられるようにしておく(既存の作品に依拠していないことや、人の創作的寄与を説明するため)",
+   "fix": "AIへの指示(プロンプト)を入れて、制作記録に残す",
+   "source": "https://www.bunka.go.jp/seisaku/chosakuken/pdf/94097701_01.pdf",
+   "section": "3-1-7(AIと著作権に関するチェックリスト&ガイダンス 令和6年7月31日)",
+   "checked": "2026-11-11"
+  },
+  {
+   "id": "bunka.similarity",
+   "platform": "bunka_jp",
+   "field": "release",
+   "level": "warn",
+   "status": "verified",
+   "check": "similarity_check",
+   "rule": "生成物を使う前に、既存の作品と似ていないかを確かめ、確かめたことを説明できるようにしておく。既存の作品や題名をプロンプトに入れると依拠が認められやすい",
+   "fix": "出す前に既存の曲と似ていないか(曲名・歌詞の検索など)を確かめ、確かめた日を制作記録に書く。プロンプトに実在の曲名・歌手名を入れない",
+   "source": "https://www.bunka.go.jp/seisaku/chosakuken/pdf/94097701_01.pdf",
+   "section": "3-1-5 / 3-1-6 / 3-1-7",
+   "checked": "2026-11-11"
+  },
+  {
+   "id": "meti.voice.publicity",
+   "platform": "meti_jp",
+   "field": "vocals",
+   "level": "warn",
+   "status": "verified",
+   "check": "voice_impersonation",
+   "rule": "実在の人の声と同じと分かる声を使うときは、パブリシティ権の侵害にならないかの検討が必須の対応策。侵害のおそれがあれば、使わない・許諾を取る・その人と分からない声に作り直す",
+   "fix": "実在の歌手に似せた声は、その人の許諾が無ければ使わない。許諾があれば記録を残す",
+   "source": "https://www.meti.go.jp/policy/mono_info_service/contents/ai_guidebook_set.pdf",
+   "section": "コンテンツ制作のための生成AI利活用ガイドブック(経済産業省 2024年7月) p.49-50(人の声の利用)",
+   "checked": "2026-11-11",
+   "basis": "ガイドブックの対象はゲーム・アニメ・広告。音楽の配信に当てはめたのは NEXUS の読み方"
+  },
+  {
+   "id": "meti.similarity.search",
+   "platform": "meti_jp",
+   "field": "release",
+   "level": "warn",
+   "status": "verified",
+   "check": "similarity_check",
+   "rule": "生成物が既存の作品と同じ・似ていないかを、Web検索などで確かめることが必須の対応策",
+   "fix": "出す前に曲名・歌詞・メロディを検索して似た曲がないか確かめ、確かめた日を制作記録に書く",
+   "source": "https://www.meti.go.jp/policy/mono_info_service/contents/ai_guidebook_set.pdf",
+   "section": "コンテンツ制作のための生成AI利活用ガイドブック(経済産業省 2024年7月) p.27 / p.34(AI生成物の利用段階)",
+   "checked": "2026-11-11"
+  },
+  {
+   "id": "meti.tool.terms",
+   "platform": "meti_jp",
+   "field": "ai",
+   "level": "warn",
+   "status": "verified",
+   "check": "tool_terms",
+   "rule": "使う生成AIのサービスの仕様や利用規約を確かめる(学習データやフィルタの有無も)",
+   "fix": "使ったAIの道具の利用規約で、商用利用・配信の条件を確かめ、確かめた日を制作記録に書く",
+   "source": "https://www.meti.go.jp/policy/mono_info_service/contents/ai_guidebook_set.pdf",
+   "section": "コンテンツ制作のための生成AI利活用ガイドブック(経済産業省 2024年7月) p.27(利用する生成AIの選択段階)",
+   "checked": "2026-11-11"
+  },
+  {
+   "id": "meti.prompt.no_names",
+   "platform": "meti_jp",
+   "field": "record",
+   "level": "warn",
+   "status": "verified",
+   "check": "prompt_named_refs",
+   "params": {
+    "patterns": [
+     "in the style of",
+     "style of",
+     "sounds like",
+     "風に",
+     "風の",
+     "っぽく",
+     "みたいな",
+     "のような声"
+    ]
+   },
+   "rule": "プロンプトに特定の作品や人物に関わる語を入れない・他人の作品を入れない",
+   "fix": "プロンプトから実在の歌手名・曲名と「〜風に」のような指定を消し、ジャンル・楽器・雰囲気の言葉にする",
+   "source": "https://www.meti.go.jp/policy/mono_info_service/contents/ai_guidebook_set.pdf",
+   "section": "コンテンツ制作のための生成AI利活用ガイドブック(経済産業省 2024年7月) p.34-35(プロンプト入力段階)",
+   "checked": "2026-11-11",
+   "basis": "人名・曲名を自動で全部は見つけられない。似せた歌手の名前と「〜風に」などの言い方だけを探し、見つからなければ目で確かめる"
   }
  ]
 }
