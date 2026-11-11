@@ -14,6 +14,8 @@ OFFICIAL = {
     "distrokid": ("distrokid.com", "support.distrokid.com"),
     "jasrac": ("www.jasrac.or.jp",),
     "nextone": ("www.nex-tone.co.jp",),
+    "bunka_jp": ("www.bunka.go.jp",),
+    "meti_jp": ("www.meti.go.jp",),
 }
 
 
