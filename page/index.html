@@ -62,6 +62,7 @@ details summary{cursor:pointer}
 <div><label for="plan">プラン</label><select id="plan"><option value="">選ぶ</option><option value="paid">有料</option><option value="free">無料</option></select></div>
 <div><label for="created">作った日</label><input type="date" id="created"></div>
 </div>
+<div class="checks"><label><input type="checkbox" id="terms">使ったAIの道具の利用規約(商用利用・配信の条件)を確かめた</label></div>
 <label>自分がしたこと</label>
 <div class="checks" id="work">
 <label><input type="checkbox" value="作詞">作詞</label><label><input type="checkbox" value="作曲">作曲</label><label><input type="checkbox" value="編曲">編曲</label><label><input type="checkbox" value="歌">歌</label><label><input type="checkbox" value="演奏">演奏</label><label><input type="checkbox" value="ミックス">ミックス</label><label><input type="checkbox" value="マスタリング">マスタリング</label><label><input type="checkbox" value="ジャケット">ジャケット</label>
@@ -81,6 +82,8 @@ details summary{cursor:pointer}
 <div class="checks">
 <label><input type="checkbox" id="ytaltered">YouTube で「AIで作った・加工した」を申告する</label>
 <label><input type="checkbox" id="credits">配信会社の欄でAIを使った部分を示す</label>
+<label for="ytmusic">YouTube 音楽の生成AIの申告(contains_ai)</label><select id="ytmusic"><option value="">まだ決めていない</option><option value="all">all(すべて生成AI)</option><option value="partly">partly(一部生成AI)</option><option value="none">none(生成AIなし)</option></select>
+<label><input type="checkbox" id="similar">出す前に既存の曲と似ていないか確かめた</label>
 </div>
 </fieldset>
 
@@ -146,7 +149,7 @@ function today(){ var d = new Date(); return d.getFullYear()+'-'+('0'+(d.getMont
 $('rulesver').textContent = RULES.version + '(' + RULES.updated + ' 更新)';
 Object.keys(RULES.platforms).forEach(function(k){
   var l = document.createElement('label');
-  var on = RULES.platforms[k].kind === 'rights' ? '' : ' checked';
+  var on = (RULES.platforms[k].kind === 'rights' || RULES.platforms[k].kind === 'guide') ? '' : ' checked';
   l.innerHTML = '<input type="checkbox" value="'+esc(k)+'"'+on+'>' + esc(RULES.platforms[k].name);
   $('plats').appendChild(l);
 });
@@ -176,13 +179,13 @@ function readSong(){
   return {
     title: $('title').value.trim(), artist: $('artist').value.trim(),
     featuring: $('featuring').value.split(/[,、]/).map(function(x){ return x.trim(); }).filter(Boolean),
-    ai: { tool: $('tool').value.trim(), version: $('version').value.trim(), plan: $('plan').value, created: $('created').value },
+    ai: { tool: $('tool').value.trim(), version: $('version').value.trim(), plan: $('plan').value, created: $('created').value, terms_checked: $('terms').checked },
     authorship: { lyrics: $('lyr_by').value, music: $('mus_by').value },
     human_work: vals('work'), prompt: $('prompt').value, lyrics: $('lyrics').value,
     artwork: a,
     vocals: $('sounds').value.trim() || $('permission').checked ? { sounds_like: $('sounds').value.trim(), permission: $('permission').checked } : { sounds_like: '' },
-    release: dup ? { duplicate: dup === 'yes' } : {},
-    disclosures: { youtube_altered: $('ytaltered').checked, credits_ai: $('credits').checked },
+    release: (function(){ var r = dup ? { duplicate: dup === 'yes' } : {}; if ($('similar').checked) r.similarity_checked = true; return r; })(),
+    disclosures: { youtube_altered: $('ytaltered').checked, credits_ai: $('credits').checked, youtube_music_contains_ai: $('ytmusic').value },
     platforms: vals('plats')
   };
 }
